@@ -24,7 +24,6 @@ class MockLocationService : Service() {
         const val NOTIFICATION_ID = 1001
         const val ACTION_STOP = "com.gpsemulator.STOP"
 
-        // Intent extras
         const val EXTRA_MODE = "mode"
         const val EXTRA_LAT = "lat"
         const val EXTRA_LON = "lon"
@@ -33,6 +32,13 @@ class MockLocationService : Service() {
 
         const val MODE_STATIC = "static"
         const val MODE_ROUTE = "route"
+
+        // All providers to mock
+        private val MOCK_PROVIDERS = listOf(
+            LocationManager.GPS_PROVIDER,
+            LocationManager.NETWORK_PROVIDER,
+            "fused"
+        )
     }
 
     private val binder = LocalBinder()
@@ -44,6 +50,7 @@ class MockLocationService : Service() {
     var currentLon = 121.5654
     var isRunning = false
     var statusCallback: ((String) -> Unit)? = null
+    private var pendingError: String? = null
 
     inner class LocalBinder : Binder() {
         fun getService(): MockLocationService = this@MockLocationService
@@ -53,7 +60,6 @@ class MockLocationService : Service() {
         super.onCreate()
         locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
         createNotificationChannel()
-        setupMockProvider()
     }
 
     override fun onBind(intent: Intent): IBinder = binder
@@ -66,6 +72,10 @@ class MockLocationService : Service() {
 
         startForeground(NOTIFICATION_ID, buildNotification("GPS 模擬器運行中"))
 
+        // Setup mock providers AFTER startForeground
+        val setupOk = setupMockProviders()
+        if (!setupOk) return START_NOT_STICKY
+
         val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_STATIC
         when (mode) {
             MODE_STATIC -> {
@@ -75,11 +85,12 @@ class MockLocationService : Service() {
             }
             MODE_ROUTE -> {
                 @Suppress("UNCHECKED_CAST", "DEPRECATION")
-                val waypoints: ArrayList<RoutePoint>? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent?.getSerializableExtra(EXTRA_WAYPOINTS, ArrayList::class.java) as? ArrayList<RoutePoint>
-                } else {
-                    intent?.getSerializableExtra(EXTRA_WAYPOINTS) as? ArrayList<RoutePoint>
-                }
+                val waypoints: ArrayList<RoutePoint>? =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent?.getSerializableExtra(EXTRA_WAYPOINTS, ArrayList::class.java) as? ArrayList<RoutePoint>
+                    } else {
+                        intent?.getSerializableExtra(EXTRA_WAYPOINTS) as? ArrayList<RoutePoint>
+                    }
                 val speedKmh = intent?.getFloatExtra(EXTRA_SPEED_KMH, 30f) ?: 30f
                 if (waypoints != null && waypoints.size >= 2) {
                     startRouteMode(waypoints, speedKmh)
@@ -90,43 +101,77 @@ class MockLocationService : Service() {
         return START_STICKY
     }
 
-    private fun setupMockProvider() {
-        try {
-            if (locationManager.allProviders.contains(LocationManager.GPS_PROVIDER)) {
-                try {
-                    locationManager.removeTestProvider(LocationManager.GPS_PROVIDER)
-                } catch (_: Exception) {}
+    private fun setupMockProviders(): Boolean {
+        var anySuccess = false
+        val errors = mutableListOf<String>()
+
+        for (providerName in MOCK_PROVIDERS) {
+            try {
+                try { locationManager.removeTestProvider(providerName) } catch (_: Exception) {}
+
+                locationManager.addTestProvider(
+                    providerName,
+                    false, false, false, false, false,
+                    true, true,
+                    Criteria.POWER_LOW, Criteria.ACCURACY_FINE
+                )
+                locationManager.setTestProviderEnabled(providerName, true)
+                anySuccess = true
+            } catch (e: Exception) {
+                errors.add("$providerName: ${e.message}")
             }
-            locationManager.addTestProvider(
-                LocationManager.GPS_PROVIDER,
-                false, false, false, false, false,
-                true, true,
-                Criteria.POWER_LOW, Criteria.ACCURACY_FINE
-            )
-            locationManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
-        } catch (e: Exception) {
-            statusCallback?.invoke("錯誤：無法設定模擬位置提供者\n請至「開發人員選項」選擇此 APP 為模擬定位 APP")
         }
+
+        if (!anySuccess) {
+            val msg = "無法設定模擬位置，請確認：\n1. 已在「開發人員選項」→「選取模擬位置應用程式」選此 APP\n2. 開發人員選項已啟用\n錯誤：${errors.firstOrNull()}"
+            postStatus(msg)
+            stopSelf()
+            return false
+        }
+
+        return true
+    }
+
+    fun setStatusCallback(cb: (String) -> Unit) {
+        statusCallback = cb
+        pendingError?.let { cb(it); pendingError = null }
+    }
+
+    private fun postStatus(msg: String) {
+        if (statusCallback != null) statusCallback?.invoke(msg)
+        else pendingError = msg
     }
 
     fun pushLocation(lat: Double, lon: Double, bearing: Float = 0f, speed: Float = 0f) {
-        try {
-            val location = Location(LocationManager.GPS_PROVIDER).apply {
-                latitude = lat
-                longitude = lon
-                altitude = 10.0
-                accuracy = 1.0f
-                this.bearing = bearing
-                this.speed = speed
-                time = System.currentTimeMillis()
-                elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-            }
-            locationManager.setTestProviderLocation(LocationManager.GPS_PROVIDER, location)
-            currentLat = lat
-            currentLon = lon
-        } catch (e: Exception) {
-            statusCallback?.invoke("錯誤：${e.message}")
+        val location = Location(LocationManager.GPS_PROVIDER).apply {
+            latitude = lat
+            longitude = lon
+            altitude = 10.0
+            accuracy = 3.0f
+            this.bearing = bearing
+            this.speed = speed
+            time = System.currentTimeMillis()
+            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
         }
+
+        for (providerName in MOCK_PROVIDERS) {
+            try {
+                val loc = Location(providerName).apply {
+                    latitude = lat
+                    longitude = lon
+                    altitude = 10.0
+                    accuracy = 3.0f
+                    this.bearing = bearing
+                    this.speed = speed
+                    time = System.currentTimeMillis()
+                    elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                }
+                locationManager.setTestProviderLocation(providerName, loc)
+            } catch (_: Exception) {}
+        }
+
+        currentLat = lat
+        currentLon = lon
     }
 
     fun startStaticMode(lat: Double, lon: Double) {
@@ -135,7 +180,7 @@ class MockLocationService : Service() {
         serviceJob = scope.launch {
             while (isActive) {
                 pushLocation(lat, lon)
-                statusCallback?.invoke("靜態模式：%.6f, %.6f".format(lat, lon))
+                postStatus("📍 靜態模式：%.6f, %.6f".format(lat, lon))
                 delay(1000)
             }
         }
@@ -148,14 +193,14 @@ class MockLocationService : Service() {
 
         serviceJob = scope.launch {
             var waypointIndex = 0
-            statusCallback?.invoke("路徑模式開始，共 ${waypoints.size} 個路徑點")
+            postStatus("🗺 路徑模式開始，共 ${waypoints.size} 個路徑點，時速 ${speedKmh.toInt()} km/h")
 
             while (isActive) {
                 val from = waypoints[waypointIndex]
                 val to = waypoints[(waypointIndex + 1) % waypoints.size]
 
                 val distanceM = haversineDistance(from.latitude, from.longitude, to.latitude, to.longitude)
-                val travelMs = (distanceM / speedMs * 1000).toLong().coerceAtLeast(1000L)
+                val travelMs = (distanceM / speedMs * 1000).toLong().coerceAtLeast(500L)
                 val bearing = calculateBearing(from.latitude, from.longitude, to.latitude, to.longitude)
                 val updateIntervalMs = 500L
                 val steps = (travelMs / updateIntervalMs).coerceAtLeast(1)
@@ -166,25 +211,25 @@ class MockLocationService : Service() {
                     val lat = from.latitude + (to.latitude - from.latitude) * fraction
                     val lon = from.longitude + (to.longitude - from.longitude) * fraction
                     pushLocation(lat, lon, bearing, speedMs)
-                    val pointName = if (to.name.isNotBlank()) to.name else "路徑點 ${waypointIndex + 2}"
-                    statusCallback?.invoke("前往 $pointName (${(fraction * 100).toInt()}%)")
+                    val nextName = if (to.name.isNotBlank()) to.name else "路徑點 ${waypointIndex + 2}"
+                    val distLeft = (distanceM * (1 - fraction)).toInt()
+                    postStatus("🚗 前往 $nextName | ${speedKmh.toInt()} km/h | 剩 ${distLeft}m")
                     delay(updateIntervalMs)
                 }
 
-                // Dwell at waypoint
                 if (to.dwellSeconds > 0) {
                     val pointName = if (to.name.isNotBlank()) to.name else "路徑點 ${waypointIndex + 2}"
                     repeat(to.dwellSeconds) { s ->
                         if (!isActive) return@launch
                         pushLocation(to.latitude, to.longitude)
-                        statusCallback?.invoke("停留於 $pointName (${to.dwellSeconds - s}s)")
+                        postStatus("⏸ 停留於 $pointName (${to.dwellSeconds - s}s)")
                         delay(1000)
                     }
                 }
 
                 waypointIndex = (waypointIndex + 1) % waypoints.size
                 if (waypointIndex == 0) {
-                    statusCallback?.invoke("路徑完成，重新開始...")
+                    postStatus("🔄 路徑完成，重新開始...")
                     delay(1000)
                 }
             }
@@ -195,7 +240,7 @@ class MockLocationService : Service() {
         serviceJob?.cancel()
         serviceJob = null
         isRunning = false
-        statusCallback?.invoke("已停止模擬")
+        postStatus("⏹ 已停止模擬")
     }
 
     private fun haversineDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -215,24 +260,21 @@ class MockLocationService : Service() {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID, "GPS 模擬器",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
+        val channel = NotificationChannel(CHANNEL_ID, "GPS 模擬器", NotificationManager.IMPORTANCE_LOW).apply {
             description = "GPS 位置模擬服務"
         }
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(channel)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
     private fun buildNotification(text: String): Notification {
-        val stopIntent = Intent(this, MockLocationService::class.java).apply {
-            action = ACTION_STOP
-        }
-        val stopPi = PendingIntent.getService(this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE)
-        val openIntent = Intent(this, MainActivity::class.java)
-        val openPi = PendingIntent.getActivity(this, 0, openIntent, PendingIntent.FLAG_IMMUTABLE)
-
+        val stopPi = PendingIntent.getService(
+            this, 0,
+            Intent(this, MockLocationService::class.java).apply { action = ACTION_STOP },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val openPi = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("GPS 模擬器")
             .setContentText(text)
@@ -245,10 +287,12 @@ class MockLocationService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
-        try {
-            locationManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, false)
-            locationManager.removeTestProvider(LocationManager.GPS_PROVIDER)
-        } catch (_: Exception) {}
+        for (p in MOCK_PROVIDERS) {
+            try {
+                locationManager.setTestProviderEnabled(p, false)
+                locationManager.removeTestProvider(p)
+            } catch (_: Exception) {}
+        }
         isRunning = false
         super.onDestroy()
     }

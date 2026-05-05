@@ -7,11 +7,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.text.InputType
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -36,23 +39,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var panelLocation: LinearLayout
     private lateinit var panelRoute: LinearLayout
 
-    // Location panel views
+    // Location panel
     private lateinit var etLat: EditText
     private lateinit var etLon: EditText
     private lateinit var btnSetLocation: Button
     private lateinit var btnSetOnMap: Button
+    private lateinit var btnMyLocation: Button
     private lateinit var tvStatus: TextView
 
-    // Route panel views
+    // Route panel
     private lateinit var rvWaypoints: RecyclerView
     private lateinit var btnAddWaypoint: Button
     private lateinit var btnClearRoute: Button
     private lateinit var btnStartRoute: Button
-    private lateinit var seekSpeed: SeekBar
-    private lateinit var tvSpeed: TextView
+    private lateinit var btnSpeedMinus: Button
+    private lateinit var btnSpeedPlus: Button
+    private lateinit var etSpeedValue: EditText
 
     private val waypoints = mutableListOf<RoutePoint>()
     private lateinit var waypointAdapter: WaypointAdapter
+    private var speedKmh: Int = 30
 
     private var mockService: MockLocationService? = null
     private var serviceBound = false
@@ -62,16 +68,17 @@ class MainActivity : AppCompatActivity() {
     private var pickingFromMap = false
     private var pickingForRouteIndex = -1
 
+    private lateinit var locationManager: LocationManager
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
             val binder = service as MockLocationService.LocalBinder
             mockService = binder.getService()
             serviceBound = true
-            mockService?.statusCallback = { msg ->
+            mockService?.setStatusCallback { msg ->
                 runOnUiThread { tvStatus.text = msg }
             }
         }
-
         override fun onServiceDisconnected(name: ComponentName) {
             serviceBound = false
             mockService = null
@@ -89,6 +96,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_main)
+        locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+
         bindViews()
         setupMap()
         setupTabs()
@@ -108,14 +117,16 @@ class MainActivity : AppCompatActivity() {
         etLon = findViewById(R.id.et_longitude)
         btnSetLocation = findViewById(R.id.btn_set_location)
         btnSetOnMap = findViewById(R.id.btn_set_on_map)
+        btnMyLocation = findViewById(R.id.btn_my_location)
         tvStatus = findViewById(R.id.tv_status)
 
         rvWaypoints = findViewById(R.id.rv_waypoints)
         btnAddWaypoint = findViewById(R.id.btn_add_waypoint)
         btnClearRoute = findViewById(R.id.btn_clear_route)
         btnStartRoute = findViewById(R.id.btn_start_route)
-        seekSpeed = findViewById(R.id.seek_speed)
-        tvSpeed = findViewById(R.id.tv_speed)
+        btnSpeedMinus = findViewById(R.id.btn_speed_minus)
+        btnSpeedPlus = findViewById(R.id.btn_speed_plus)
+        etSpeedValue = findViewById(R.id.et_speed_value)
     }
 
     private fun setupMap() {
@@ -126,15 +137,11 @@ class MainActivity : AppCompatActivity() {
 
         val receiver = object : MapEventsReceiver {
             override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                if (pickingFromMap) {
-                    onMapPointPicked(p)
-                    return true
-                }
+                if (pickingFromMap) { onMapPointPicked(p); return true }
                 return false
             }
             override fun longPressHelper(p: GeoPoint): Boolean {
-                showPickActionDialog(p)
-                return true
+                showPickActionDialog(p); return true
             }
         }
         mapView.overlays.add(MapEventsOverlay(receiver))
@@ -147,7 +154,7 @@ class MainActivity : AppCompatActivity() {
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
                 panelLocation.visibility = if (tab.position == 0) android.view.View.VISIBLE else android.view.View.GONE
-                panelRoute.visibility = if (tab.position == 1) android.view.View.VISIBLE else android.view.View.GONE
+                panelRoute.visibility   = if (tab.position == 1) android.view.View.VISIBLE else android.view.View.GONE
             }
             override fun onTabUnselected(tab: TabLayout.Tab) {}
             override fun onTabReselected(tab: TabLayout.Tab) {}
@@ -171,6 +178,8 @@ class MainActivity : AppCompatActivity() {
             tvStatus.text = "請點擊地圖選擇位置..."
             Toast.makeText(this, "請點擊地圖選擇位置", Toast.LENGTH_SHORT).show()
         }
+
+        btnMyLocation.setOnClickListener { fetchRealLocation() }
     }
 
     private fun setupRoutePanel() {
@@ -183,11 +192,9 @@ class MainActivity : AppCompatActivity() {
                 updateRouteOnMap()
             },
             onClick = { index ->
-                val pt = waypoints[index]
-                mapView.controller.animateTo(GeoPoint(pt.latitude, pt.longitude))
+                mapView.controller.animateTo(GeoPoint(waypoints[index].latitude, waypoints[index].longitude))
             }
         )
-
         rvWaypoints.layoutManager = LinearLayoutManager(this)
         rvWaypoints.adapter = waypointAdapter
 
@@ -201,16 +208,21 @@ class MainActivity : AppCompatActivity() {
             btnStartRoute.text = "▶ 開始路徑模擬"
         }
 
-        seekSpeed.max = 95
-        seekSpeed.progress = 25
-        tvSpeed.text = "速度: 30 km/h"
-        seekSpeed.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                tvSpeed.text = "速度: ${progress + 5} km/h"
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
+        etSpeedValue.setText(speedKmh.toString())
+        etSpeedValue.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) syncSpeedFromInput()
+        }
+
+        btnSpeedMinus.setOnClickListener {
+            syncSpeedFromInput()
+            speedKmh = (speedKmh - 10).coerceAtLeast(5)
+            etSpeedValue.setText(speedKmh.toString())
+        }
+        btnSpeedPlus.setOnClickListener {
+            syncSpeedFromInput()
+            speedKmh = (speedKmh + 10).coerceAtMost(200)
+            etSpeedValue.setText(speedKmh.toString())
+        }
 
         btnStartRoute.setOnClickListener {
             if (mockService?.isRunning == true) {
@@ -222,9 +234,66 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun syncSpeedFromInput() {
+        val v = etSpeedValue.text.toString().toIntOrNull()
+        if (v != null && v in 1..300) speedKmh = v
+        else etSpeedValue.setText(speedKmh.toString())
+    }
+
+    private fun fetchRealLocation() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "需要位置權限", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        tvStatus.text = "正在取得目前位置..."
+        btnMyLocation.isEnabled = false
+
+        // Try last known location first (fast)
+        val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+        var best: Location? = null
+        for (p in providers) {
+            try {
+                val loc = locationManager.getLastKnownLocation(p)
+                if (loc != null && (best == null || loc.accuracy < best.accuracy)) best = loc
+            } catch (_: Exception) {}
+        }
+
+        if (best != null) {
+            applyRealLocation(best)
+            return
+        }
+
+        // Request fresh location
+        val listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                locationManager.removeUpdates(this)
+                runOnUiThread { applyRealLocation(location) }
+            }
+            @Deprecated("Deprecated in Java")
+            override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+        }
+
+        try {
+            locationManager.requestSingleUpdate(LocationManager.NETWORK_PROVIDER, listener, mainLooper)
+        } catch (e: Exception) {
+            btnMyLocation.isEnabled = true
+            tvStatus.text = "無法取得位置：${e.message}"
+        }
+    }
+
+    private fun applyRealLocation(loc: Location) {
+        btnMyLocation.isEnabled = true
+        etLat.setText("%.6f".format(loc.latitude))
+        etLon.setText("%.6f".format(loc.longitude))
+        mapView.controller.animateTo(GeoPoint(loc.latitude, loc.longitude))
+        mapView.controller.setZoom(16.0)
+        tvStatus.text = "目前位置：%.6f, %.6f".format(loc.latitude, loc.longitude)
+    }
+
     private fun setStaticLocation(lat: Double, lon: Double) {
         val geoPoint = GeoPoint(lat, lon)
-
         if (currentMarker == null) {
             currentMarker = Marker(mapView).apply {
                 title = "模擬位置"
@@ -250,11 +319,11 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "至少需要 2 個路徑點", Toast.LENGTH_SHORT).show()
             return
         }
-        val speedKmh = (seekSpeed.progress + 5).toFloat()
+        syncSpeedFromInput()
         val intent = Intent(this, MockLocationService::class.java).apply {
             putExtra(MockLocationService.EXTRA_MODE, MockLocationService.MODE_ROUTE)
             putExtra(MockLocationService.EXTRA_WAYPOINTS, ArrayList(waypoints))
-            putExtra(MockLocationService.EXTRA_SPEED_KMH, speedKmh)
+            putExtra(MockLocationService.EXTRA_SPEED_KMH, speedKmh.toFloat())
         }
         ContextCompat.startForegroundService(this, intent)
         btnStartRoute.text = "⏹ 停止路徑模擬"
@@ -263,11 +332,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun showAddWaypointDialog(editIndex: Int = -1) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_waypoint, null)
-        val etName = dialogView.findViewById<EditText>(R.id.et_wp_name)
-        val etWpLat = dialogView.findViewById<EditText>(R.id.et_wp_lat)
-        val etWpLon = dialogView.findViewById<EditText>(R.id.et_wp_lon)
-        val etDwell = dialogView.findViewById<EditText>(R.id.et_wp_dwell)
-        val btnPickMap = dialogView.findViewById<Button>(R.id.btn_pick_from_map)
+        val etName   = dialogView.findViewById<EditText>(R.id.et_wp_name)
+        val etWpLat  = dialogView.findViewById<EditText>(R.id.et_wp_lat)
+        val etWpLon  = dialogView.findViewById<EditText>(R.id.et_wp_lon)
+        val etDwell  = dialogView.findViewById<EditText>(R.id.et_wp_dwell)
+        val btnPick  = dialogView.findViewById<Button>(R.id.btn_pick_from_map)
 
         if (editIndex >= 0) {
             val pt = waypoints[editIndex]
@@ -284,7 +353,7 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("取消", null)
             .create()
 
-        btnPickMap.setOnClickListener {
+        btnPick.setOnClickListener {
             dialog.dismiss()
             pickingFromMap = true
             pickingForRouteIndex = if (editIndex >= 0) editIndex else waypoints.size
@@ -301,12 +370,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "請輸入有效的經緯度", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val point = RoutePoint(
-                latitude = lat,
-                longitude = lon,
-                name = etName.text.toString().trim(),
-                dwellSeconds = etDwell.text.toString().toIntOrNull() ?: 0
-            )
+            val point = RoutePoint(lat, lon, etName.text.toString().trim(), etDwell.text.toString().toIntOrNull() ?: 0)
             if (editIndex >= 0) {
                 waypoints[editIndex] = point
                 waypointAdapter.notifyItemChanged(editIndex)
@@ -320,14 +384,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPickActionDialog(geoPoint: GeoPoint) {
-        val items = arrayOf(
-            "設為靜態模擬位置",
-            "新增為路徑點",
-            "取消"
-        )
         AlertDialog.Builder(this)
             .setTitle("%.5f, %.5f".format(geoPoint.latitude, geoPoint.longitude))
-            .setItems(items) { _, which ->
+            .setItems(arrayOf("設為靜態模擬位置", "新增為路徑點", "取消")) { _, which ->
                 when (which) {
                     0 -> {
                         etLat.setText(geoPoint.latitude.toString())
@@ -341,8 +400,7 @@ class MainActivity : AppCompatActivity() {
                         tabLayout.getTabAt(1)?.select()
                     }
                 }
-            }
-            .show()
+            }.show()
     }
 
     private fun onMapPointPicked(geoPoint: GeoPoint) {
@@ -351,12 +409,10 @@ class MainActivity : AppCompatActivity() {
         val lon = geoPoint.longitude
 
         if (pickingForRouteIndex == -1) {
-            // Setting static location
             etLat.setText(lat.toString())
             etLon.setText(lon.toString())
             setStaticLocation(lat, lon)
         } else {
-            // Adding/updating waypoint
             val point = RoutePoint(lat, lon)
             if (pickingForRouteIndex < waypoints.size) {
                 waypoints[pickingForRouteIndex] = point
@@ -373,16 +429,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateRouteOnMap() {
-        // Remove old waypoint markers and polyline
         waypointMarkers.forEach { mapView.overlays.remove(it) }
         waypointMarkers.clear()
         routePolyline?.let { mapView.overlays.remove(it) }
         routePolyline = null
 
-        if (waypoints.isEmpty()) {
-            mapView.invalidate()
-            return
-        }
+        if (waypoints.isEmpty()) { mapView.invalidate(); return }
 
         val geoPoints = waypoints.map { GeoPoint(it.latitude, it.longitude) }
 
@@ -408,13 +460,11 @@ class MainActivity : AppCompatActivity() {
 
         mapView.invalidate()
 
-        // Zoom to fit all points
         if (geoPoints.size >= 2) {
-            val minLat = geoPoints.minOf { it.latitude }
-            val maxLat = geoPoints.maxOf { it.latitude }
-            val minLon = geoPoints.minOf { it.longitude }
-            val maxLon = geoPoints.maxOf { it.longitude }
-            val center = GeoPoint((minLat + maxLat) / 2, (minLon + maxLon) / 2)
+            val center = GeoPoint(
+                (geoPoints.minOf { it.latitude } + geoPoints.maxOf { it.latitude }) / 2,
+                (geoPoints.minOf { it.longitude } + geoPoints.maxOf { it.longitude }) / 2
+            )
             mapView.controller.animateTo(center)
         } else {
             mapView.controller.animateTo(geoPoints[0])
@@ -454,10 +504,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        if (serviceBound) {
-            unbindService(serviceConnection)
-            serviceBound = false
-        }
+        if (serviceBound) { unbindService(serviceConnection); serviceBound = false }
         mapView.onDetach()
         super.onDestroy()
     }

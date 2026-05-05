@@ -9,18 +9,18 @@
     <!-- Toolbar -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="52dp"
         android:background="@color/primary"
         android:gravity="center_vertical"
         android:paddingStart="16dp"
-        android:paddingEnd="16dp">
+        android:paddingEnd="12dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="🛰 GPS 模擬器"
             android:textColor="#FFFFFF"
-            android:textSize="20sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
         <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
@@ -29,10 +29,10 @@
             android:id="@+id/tv_status"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_weight="1.4"
             android:gravity="end"
             android:text="就緒"
-            android:textColor="#CCFFFFFF"
+            android:textColor="#DDFFFFFF"
             android:textSize="11sp"
             android:maxLines="2"
             android:ellipsize="end" />
@@ -49,7 +49,7 @@
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tab_layout"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="46dp"
         app:tabGravity="fill"
         app:tabMode="fixed"
         app:tabSelectedTextColor="@color/primary"
@@ -57,20 +57,23 @@
         app:tabIndicatorColor="@color/primary"
         android:background="@color/surface" />
 
-    <!-- Location Panel -->
+    <!-- ===== Location Panel ===== -->
     <LinearLayout
         android:id="@+id/panel_location"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:background="@color/surface"
-        android:padding="12dp">
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
 
+        <!-- Lat / Lon inputs -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:orientation="horizontal">
 
             <com.google.android.material.textfield.TextInputLayout
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
@@ -78,7 +81,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginEnd="6dp"
-                android:hint="緯度 (Latitude)">
+                android:hint="緯度 Latitude">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_latitude"
@@ -94,7 +97,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="6dp"
-                android:hint="經度 (Longitude)">
+                android:hint="經度 Longitude">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_longitude"
@@ -105,6 +108,7 @@
             </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
+        <!-- Buttons row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -117,9 +121,20 @@
                 android:layout_width="0dp"
                 android:layout_height="40dp"
                 android:layout_weight="1"
-                android:layout_marginEnd="6dp"
+                android:layout_marginEnd="4dp"
                 android:text="✓ 設定位置"
-                android:textSize="13sp" />
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_my_location"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:text="📍 目前位置"
+                android:textSize="12sp" />
 
             <Button
                 android:id="@+id/btn_set_on_map"
@@ -127,21 +142,21 @@
                 android:layout_width="0dp"
                 android:layout_height="40dp"
                 android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:text="🗺 從地圖選取"
-                android:textSize="13sp" />
+                android:layout_marginStart="4dp"
+                android:text="🗺 地圖選取"
+                android:textSize="12sp" />
         </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="5dp"
             android:text="💡 長按地圖可快速設定位置或新增路徑點"
             android:textColor="@color/text_secondary"
             android:textSize="11sp" />
     </LinearLayout>
 
-    <!-- Route Panel -->
+    <!-- ===== Route Panel ===== -->
     <LinearLayout
         android:id="@+id/panel_route"
         android:layout_width="match_parent"
@@ -149,16 +164,21 @@
         android:orientation="vertical"
         android:background="@color/surface"
         android:visibility="gone"
-        android:padding="12dp">
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="10dp">
 
+        <!-- Waypoint list -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_waypoints"
             android:layout_width="match_parent"
-            android:layout_height="120dp"
+            android:layout_height="110dp"
             android:background="@color/background"
             android:clipToPadding="false"
-            android:padding="4dp" />
+            android:padding="2dp" />
 
+        <!-- Add / Clear buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -186,35 +206,71 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
+        <!-- Speed control -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="8dp">
+            android:layout_marginTop="8dp"
+            android:background="#F0F4FF"
+            android:padding="6dp">
 
             <TextView
-                android:id="@+id/tv_speed"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="速度: 30 km/h"
+                android:text="🚗 模擬時速"
                 android:textSize="13sp"
-                android:minWidth="110dp" />
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp" />
 
-            <SeekBar
-                android:id="@+id/seek_speed"
-                android:layout_width="0dp"
+            <Button
+                android:id="@+id/btn_speed_minus"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:text="-"
+                android:textSize="18sp"
+                android:padding="0dp" />
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_speed_value"
+                android:layout_width="64dp"
+                android:layout_height="40dp"
+                android:gravity="center"
+                android:inputType="number"
+                android:text="30"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:background="@android:color/white"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:maxLength="3" />
+
+            <Button
+                android:id="@+id/btn_speed_plus"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:text="+"
+                android:textSize="18sp"
+                android:padding="0dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:max="95"
-                android:progress="25" />
+                android:text=" km/h"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginStart="4dp" />
         </LinearLayout>
 
+        <!-- Start / Stop button -->
         <Button
             android:id="@+id/btn_start_route"
             style="@style/Widget.MaterialComponents.Button"
             android:layout_width="match_parent"
-            android:layout_height="42dp"
+            android:layout_height="44dp"
             android:layout_marginTop="8dp"
             android:text="▶ 開始路徑模擬"
             android:textSize="14sp" />
