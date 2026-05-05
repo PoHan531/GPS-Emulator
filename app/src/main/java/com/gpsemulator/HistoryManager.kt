@@ -28,7 +28,7 @@ class HistoryManager(context: Context) {
     fun saveLocation(name: String, lat: Double, lon: Double): SavedLocation {
         val item = SavedLocation(name = name, latitude = lat, longitude = lon)
         val list = getLocations().toMutableList().apply { add(0, item) }
-        prefs.edit().putString("locations", locationsToJson(list.take(50))).apply()
+        prefs.edit().putString("locations", locationsToJson(list.take(500))).apply()
         return item
     }
 
@@ -61,7 +61,7 @@ class HistoryManager(context: Context) {
     fun saveRoute(name: String, points: List<RoutePoint>, speedKmh: Int): SavedRoute {
         val item = SavedRoute(name = name, points = points, speedKmh = speedKmh)
         val list = getRoutes().toMutableList().apply { add(0, item) }
-        prefs.edit().putString("routes", routesToJson(list.take(20))).apply()
+        prefs.edit().putString("routes", routesToJson(list.take(100))).apply()
         return item
     }
 

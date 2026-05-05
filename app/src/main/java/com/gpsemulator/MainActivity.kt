@@ -119,6 +119,8 @@ class MainActivity : AppCompatActivity() {
         setupHistoryPanel()
         requestPermissions()
         bindMockService()
+        // Try to center map on current location at startup
+        tryInitialLocation()
     }
 
     private fun bindViews() {
@@ -549,11 +551,57 @@ class MainActivity : AppCompatActivity() {
         bindService(Intent(this, MockLocationService::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
     }
 
+    @SuppressLint("MissingPermission")
+    private fun tryInitialLocation() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) return
+
+        val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
+        for (provider in providers) {
+            try {
+                if (!locationManager.isProviderEnabled(provider)) continue
+                val loc = locationManager.getLastKnownLocation(provider) ?: continue
+                etLat.setText("%.6f".format(loc.latitude))
+                etLon.setText("%.6f".format(loc.longitude))
+                mapView.controller.setCenter(GeoPoint(loc.latitude, loc.longitude))
+                mapView.controller.setZoom(15.0)
+                tvStatus.text = "目前位置：%.6f, %.6f".format(loc.latitude, loc.longitude)
+                return
+            } catch (_: SecurityException) {}
+        }
+
+        // No last known — request fresh once in background
+        val listener = object : LocationListener {
+            override fun onLocationChanged(loc: Location) {
+                locationManager.removeUpdates(this)
+                runOnUiThread {
+                    etLat.setText("%.6f".format(loc.latitude))
+                    etLon.setText("%.6f".format(loc.longitude))
+                    mapView.controller.animateTo(GeoPoint(loc.latitude, loc.longitude))
+                    mapView.controller.setZoom(15.0)
+                    tvStatus.text = "目前位置：%.6f, %.6f".format(loc.latitude, loc.longitude)
+                }
+            }
+            @Suppress("DEPRECATION")
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+        }
+        try {
+            val available = providers.firstOrNull { locationManager.isProviderEnabled(it) } ?: return
+            locationManager.requestLocationUpdates(available, 0L, 0f, listener, mainLooper)
+        } catch (_: SecurityException) {}
+    }
+
     private fun requestPermissions() {
         val needed = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) needed.add(Manifest.permission.POST_NOTIFICATIONS)
         val toRequest = needed.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (toRequest.isNotEmpty()) ActivityCompat.requestPermissions(this, toRequest.toTypedArray(), 100)
+        else tryInitialLocation()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 100) tryInitialLocation()
     }
 
     override fun onResume() { super.onResume(); mapView.onResume(); if (!serviceBound) bindMockService() }
