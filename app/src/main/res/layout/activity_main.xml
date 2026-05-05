@@ -12,15 +12,15 @@
         android:layout_height="52dp"
         android:background="@color/primary"
         android:gravity="center_vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="12dp">
+        android:paddingStart="14dp"
+        android:paddingEnd="8dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="🛰 GPS 模擬器"
             android:textColor="#FFFFFF"
-            android:textSize="18sp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
@@ -29,21 +29,59 @@
             android:id="@+id/tv_status"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1.4"
+            android:layout_weight="1.2"
             android:gravity="end"
             android:text="就緒"
             android:textColor="#DDFFFFFF"
             android:textSize="11sp"
             android:maxLines="2"
-            android:ellipsize="end" />
+            android:ellipsize="end"
+            android:layout_marginEnd="6dp" />
+
+        <!-- Stop button: always visible, enabled only when simulating -->
+        <Button
+            android:id="@+id/btn_stop_all"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="⏹ 停止"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:enabled="false"
+            android:alpha="0.4"
+            android:background="@drawable/bg_stop_button" />
     </LinearLayout>
 
-    <!-- Map View -->
-    <org.osmdroid.views.MapView
-        android:id="@+id/map_view"
+    <!-- Map View wrapped in FrameLayout for overlay -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1">
+
+        <org.osmdroid.views.MapView
+            android:id="@+id/map_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Simulation active indicator -->
+        <TextView
+            android:id="@+id/tv_sim_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_margin="8dp"
+            android:background="@drawable/badge_active"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:text="● 模擬中"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <!-- Tab Layout -->
     <com.google.android.material.tabs.TabLayout
@@ -69,7 +107,6 @@
         android:paddingTop="10dp"
         android:paddingBottom="10dp">
 
-        <!-- Lat / Lon inputs -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -82,7 +119,6 @@
                 android:layout_weight="1"
                 android:layout_marginEnd="6dp"
                 android:hint="緯度 Latitude">
-
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_latitude"
                     android:layout_width="match_parent"
@@ -98,7 +134,6 @@
                 android:layout_weight="1"
                 android:layout_marginStart="6dp"
                 android:hint="經度 Longitude">
-
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_longitude"
                     android:layout_width="match_parent"
@@ -108,7 +143,6 @@
             </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
-        <!-- Buttons row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -122,7 +156,7 @@
                 android:layout_height="40dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="4dp"
-                android:text="✓ 設定位置"
+                android:text="✓ 開始模擬"
                 android:textSize="12sp" />
 
             <Button
@@ -147,13 +181,14 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <TextView
+        <Button
+            android:id="@+id/btn_save_location"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:text="💡 長按地圖可快速設定位置或新增路徑點"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp" />
+            android:layout_height="36dp"
+            android:layout_marginTop="6dp"
+            android:text="💾 儲存此位置到清單"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <!-- ===== Route Panel ===== -->
@@ -169,27 +204,24 @@
         android:paddingTop="8dp"
         android:paddingBottom="10dp">
 
-        <!-- Waypoint list -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_waypoints"
             android:layout_width="match_parent"
-            android:layout_height="110dp"
+            android:layout_height="100dp"
             android:background="@color/background"
-            android:clipToPadding="false"
             android:padding="2dp" />
 
-        <!-- Add / Clear buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp">
+            android:layout_marginTop="6dp">
 
             <Button
                 android:id="@+id/btn_add_waypoint"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="38dp"
+                android:layout_height="36dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="4dp"
                 android:text="+ 新增路徑點"
@@ -199,10 +231,10 @@
                 android:id="@+id/btn_clear_route"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="38dp"
+                android:layout_height="36dp"
                 android:layout_weight="1"
                 android:layout_marginStart="4dp"
-                android:text="🗑 清除全部"
+                android:text="🗑 清除"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -212,31 +244,31 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="8dp"
-            android:background="#F0F4FF"
+            android:layout_marginTop="6dp"
+            android:background="#EEF2FF"
             android:padding="6dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🚗 模擬時速"
+                android:text="🚗 時速"
                 android:textSize="13sp"
                 android:textStyle="bold"
-                android:layout_marginEnd="8dp" />
+                android:layout_marginEnd="6dp" />
 
             <Button
                 android:id="@+id/btn_speed_minus"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:text="-"
                 android:textSize="18sp"
                 android:padding="0dp" />
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_speed_value"
-                android:layout_width="64dp"
-                android:layout_height="40dp"
+                android:layout_width="60dp"
+                android:layout_height="38dp"
                 android:gravity="center"
                 android:inputType="number"
                 android:text="30"
@@ -250,8 +282,8 @@
             <Button
                 android:id="@+id/btn_speed_plus"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:text="+"
                 android:textSize="18sp"
                 android:padding="0dp" />
@@ -265,15 +297,113 @@
                 android:layout_marginStart="4dp" />
         </LinearLayout>
 
-        <!-- Start / Stop button -->
-        <Button
-            android:id="@+id/btn_start_route"
-            style="@style/Widget.MaterialComponents.Button"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginTop="8dp"
-            android:text="▶ 開始路徑模擬"
-            android:textSize="14sp" />
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <Button
+                android:id="@+id/btn_start_route"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:text="▶ 開始路徑模擬"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/btn_save_route"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:text="💾 儲存路徑"
+                android:textSize="13sp" />
+        </LinearLayout>
     </LinearLayout>
+
+    <!-- ===== History Panel ===== -->
+    <ScrollView
+        android:id="@+id/panel_history"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="10dp">
+
+            <!-- Saved Locations -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📍 已儲存位置"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary"
+                android:paddingBottom="4dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_saved_locations"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:background="@color/background" />
+
+            <TextView
+                android:id="@+id/tv_no_locations"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:gravity="center"
+                android:text="尚無儲存的位置"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="6dp"
+                android:background="#E0E0E0" />
+
+            <!-- Saved Routes -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🗺 已儲存路徑"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary"
+                android:paddingBottom="4dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_saved_routes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:background="@color/background" />
+
+            <TextView
+                android:id="@+id/tv_no_routes"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:gravity="center"
+                android:text="尚無儲存的路徑"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>
