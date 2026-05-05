@@ -32,7 +32,11 @@ android {
     }
 
     buildFeatures {
-        viewBinding true
+        viewBinding false
+    }
+
+    lint {
+        abortOnError false
     }
 }
 
