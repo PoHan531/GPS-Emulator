@@ -1,0 +1,2 @@
+-keep class org.osmdroid.** { *; }
+-keepclassmembers class com.gpsemulator.RoutePoint { *; }
