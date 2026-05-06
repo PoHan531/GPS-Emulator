@@ -132,7 +132,7 @@ class MockLocationService : Service() {
         return true
     }
 
-    fun setStatusCallback(cb: (String) -> Unit) {
+    fun registerStatusCallback(cb: (String) -> Unit) {
         statusCallback = cb
         pendingError?.let { cb(it); pendingError = null }
     }
