@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- ===== MAIN CONTENT (全螢幕地圖 + 浮動控制) ===== -->
+    <!-- ===== 主內容（全螢幕地圖 + 浮動控制） ===== -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -17,7 +17,17 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <!-- 模擬中徽章 (頂部中央) -->
+        <!-- 地圖中心準星（偏移量補償底部列高度約78dp） -->
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:layout_marginBottom="78dp"
+            android:src="@drawable/ic_crosshair"
+            android:contentDescription="地圖中心點"
+            android:elevation="2dp" />
+
+        <!-- 模擬中徽章（頂部中央） -->
         <TextView
             android:id="@+id/tv_sim_badge"
             android:layout_width="wrap_content"
@@ -48,27 +58,27 @@
             app:backgroundTint="@color/primary"
             android:elevation="6dp" />
 
-        <!-- 頂部右側：搜尋座標按鈕 -->
+        <!-- 頂部右側：搜尋按鈕 -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab_search"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_margin="10dp"
-            android:contentDescription="搜尋座標"
+            android:contentDescription="搜尋"
             app:srcCompat="@android:drawable/ic_menu_search"
             app:fabSize="mini"
             app:backgroundTint="@color/primary"
             android:elevation="6dp" />
 
-        <!-- 停止模擬 FAB (模擬時才顯示) -->
+        <!-- 停止模擬 FAB（模擬時才顯示） -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/btn_stop_all"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_marginEnd="12dp"
-            android:layout_marginBottom="134dp"
+            android:layout_marginBottom="142dp"
             android:contentDescription="停止模擬"
             app:srcCompat="@android:drawable/ic_media_pause"
             app:fabSize="mini"
@@ -83,7 +93,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_marginEnd="12dp"
-            android:layout_marginBottom="82dp"
+            android:layout_marginBottom="90dp"
             android:contentDescription="返回目前位置"
             app:srcCompat="@android:drawable/ic_menu_mylocation"
             app:fabSize="mini"
@@ -91,7 +101,7 @@
             app:tint="@color/primary"
             android:elevation="6dp" />
 
-        <!-- 底部資訊列 (座標 + 設定此位置按鈕) -->
+        <!-- 底部資訊列 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -109,7 +119,7 @@
                 android:paddingEnd="14dp"
                 android:paddingTop="6dp"
                 android:text="就緒"
-                android:textColor="@color/text_secondary"
+                android:textColor="#757575"
                 android:textSize="11sp"
                 android:maxLines="1"
                 android:ellipsize="end" />
@@ -121,7 +131,7 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingStart="14dp"
-                android:paddingEnd="10dp"
+                android:paddingEnd="8dp"
                 android:paddingBottom="6dp">
 
                 <TextView
@@ -134,474 +144,167 @@
                     android:textColor="#1A1A1A"
                     android:fontFamily="monospace" />
 
+                <!-- 複製座標按鈕 -->
+                <ImageButton
+                    android:id="@+id/btn_copy_coords"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:src="@android:drawable/ic_menu_share"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:tint="#1976D2"
+                    android:scaleType="centerInside"
+                    android:padding="6dp"
+                    android:layout_marginEnd="4dp"
+                    android:contentDescription="複製座標" />
+
+                <!-- 設定此位置按鈕 -->
                 <Button
                     android:id="@+id/btn_set_here"
                     style="@style/Widget.MaterialComponents.Button"
                     android:layout_width="wrap_content"
                     android:layout_height="38dp"
-                    android:text="📍 設定此位置"
+                    android:text="📍 設定"
                     android:textSize="12sp"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp" />
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp" />
 
             </LinearLayout>
         </LinearLayout>
 
     </FrameLayout>
 
-    <!-- ===== 左側抽屜 ===== -->
-    <ScrollView
-        android:layout_width="300dp"
+    <!-- ===== 左側抽屜（只顯示功能表選項，點擊彈出視窗） ===== -->
+    <LinearLayout
+        android:layout_width="260dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="@color/surface"
-        android:fillViewport="false">
+        android:orientation="vertical"
+        android:background="#FFFFFF">
 
+        <!-- 抽屜標題 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:background="@color/primary"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="44dp"
+            android:paddingBottom="16dp">
 
-            <!-- 抽屜標題 -->
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@color/primary"
-                android:orientation="vertical"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="44dp"
-                android:paddingBottom="16dp">
+                android:text="🛰  GPS 模擬器"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🛰  GPS 模擬器"
-                    android:textColor="#FFFFFF"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="點擊下方項目展開設定"
-                    android:textColor="#BBFFFFFF"
-                    android:textSize="12sp" />
-            </LinearLayout>
-
-            <!-- ========== 第 1 節：設定位置清單 ========== -->
-            <LinearLayout
-                android:id="@+id/header_location"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:clickable="true"
-                android:focusable="true">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="📍  設定位置清單"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/arrow_location"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="▶"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
-            <!-- 第 1 節內容 -->
-            <LinearLayout
-                android:id="@+id/panel_location"
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="#F0F4FF"
-                android:visibility="gone"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="14dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="5dp"
-                        android:hint="緯度">
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_latitude"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="numberDecimal|numberSigned"
-                            android:text="25.033000" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="5dp"
-                        android:hint="經度">
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_longitude"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="numberDecimal|numberSigned"
-                            android:text="121.565400" />
-                    </com.google.android.material.textfield.TextInputLayout>
-                </LinearLayout>
-
-                <Button
-                    android:id="@+id/btn_set_location"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="match_parent"
-                    android:layout_height="42dp"
-                    android:layout_marginTop="8dp"
-                    android:text="✓ 開始模擬此位置"
-                    android:textSize="13sp" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="6dp">
-
-                    <Button
-                        android:id="@+id/btn_my_location"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="38dp"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="4dp"
-                        android:text="📍 目前位置"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btn_set_on_map"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="38dp"
-                        android:layout_weight="1"
-                        android:layout_marginStart="4dp"
-                        android:text="🗺 地圖選取"
-                        android:textSize="11sp" />
-                </LinearLayout>
-
-                <Button
-                    android:id="@+id/btn_save_location"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="36dp"
-                    android:layout_marginTop="6dp"
-                    android:text="💾 儲存此位置"
-                    android:textSize="12sp" />
-
-            </LinearLayout>
-
-            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E0E0E0" />
-
-            <!-- ========== 第 2 節：設定位置歷史紀錄 ========== -->
-            <LinearLayout
-                android:id="@+id/header_history"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:clickable="true"
-                android:focusable="true">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="📋  設定位置歷史紀錄"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/arrow_history"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="▶"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
-            <!-- 第 2 節內容 -->
-            <LinearLayout
-                android:id="@+id/panel_history"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="#F0F4FF"
-                android:visibility="gone"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="12dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="📍 已儲存位置"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary"
-                    android:paddingStart="4dp"
-                    android:paddingBottom="4dp" />
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_saved_locations"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false"
-                    android:background="@color/background" />
-
-                <TextView
-                    android:id="@+id/tv_no_locations"
-                    android:layout_width="match_parent"
-                    android:layout_height="36dp"
-                    android:gravity="center"
-                    android:text="尚無儲存的位置"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"
-                    android:visibility="gone" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="6dp"
-                    android:background="#E0E0E0" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="🗺 已儲存路徑"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary"
-                    android:paddingStart="4dp"
-                    android:paddingBottom="4dp" />
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_saved_routes"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false"
-                    android:background="@color/background" />
-
-                <TextView
-                    android:id="@+id/tv_no_routes"
-                    android:layout_width="match_parent"
-                    android:layout_height="36dp"
-                    android:gravity="center"
-                    android:text="尚無儲存的路徑"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"
-                    android:visibility="gone" />
-
-            </LinearLayout>
-
-            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E0E0E0" />
-
-            <!-- ========== 第 3 節：路徑規劃清單 ========== -->
-            <LinearLayout
-                android:id="@+id/header_route"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:clickable="true"
-                android:focusable="true">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="🗺  路徑規劃清單"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/arrow_route"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="▶"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
-            <!-- 第 3 節內容 -->
-            <LinearLayout
-                android:id="@+id/panel_route"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="#F0F4FF"
-                android:visibility="gone"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="14dp">
-
-                <!-- 路徑點列表 -->
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_waypoints"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false"
-                    android:background="@color/surface"
-                    android:padding="2dp" />
-
-                <!-- 新增 / 清除 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="6dp">
-
-                    <Button
-                        android:id="@+id/btn_add_waypoint"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="36dp"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="4dp"
-                        android:text="＋ 新增路徑點"
-                        android:textSize="11sp" />
-
-                    <Button
-                        android:id="@+id/btn_clear_route"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="36dp"
-                        android:layout_weight="1"
-                        android:layout_marginStart="4dp"
-                        android:text="🗑 清除"
-                        android:textSize="11sp" />
-                </LinearLayout>
-
-                <!-- 時速控制 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginTop="8dp"
-                    android:background="#E8EAF6"
-                    android:padding="8dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🚗 時速"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:textColor="#000000"
-                        android:layout_marginEnd="6dp" />
-
-                    <Button
-                        android:id="@+id/btn_speed_minus"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
-                        android:text="-"
-                        android:textSize="18sp"
-                        android:padding="0dp" />
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_speed_value"
-                        android:layout_width="56dp"
-                        android:layout_height="36dp"
-                        android:gravity="center"
-                        android:inputType="number"
-                        android:text="30"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        android:textColor="#000000"
-                        android:background="@android:color/white"
-                        android:layout_marginStart="4dp"
-                        android:layout_marginEnd="4dp"
-                        android:maxLength="3" />
-
-                    <Button
-                        android:id="@+id/btn_speed_plus"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
-                        android:text="+"
-                        android:textSize="18sp"
-                        android:padding="0dp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text=" km/h"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:textColor="#000000"
-                        android:layout_marginStart="4dp" />
-                </LinearLayout>
-
-                <!-- 開始/儲存路徑 -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <Button
-                        android:id="@+id/btn_start_route"
-                        style="@style/Widget.MaterialComponents.Button"
-                        android:layout_width="0dp"
-                        android:layout_height="42dp"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="4dp"
-                        android:text="▶ 開始路徑模擬"
-                        android:textSize="12sp" />
-
-                    <Button
-                        android:id="@+id/btn_save_route"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="42dp"
-                        android:layout_weight="1"
-                        android:layout_marginStart="4dp"
-                        android:text="💾 儲存路徑"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-            </LinearLayout>
-
-            <!-- 底部空白 -->
-            <View android:layout_width="match_parent" android:layout_height="32dp" />
-
+                android:layout_marginTop="2dp"
+                android:text="點擊項目開啟設定"
+                android:textColor="#BBFFFFFF"
+                android:textSize="12sp" />
         </LinearLayout>
-    </ScrollView>
+
+        <!-- 分隔線 -->
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E0E0E0" />
+
+        <!-- 第 1 項：設定位置清單 -->
+        <LinearLayout
+            android:id="@+id/header_location"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:paddingStart="18dp"
+            android:paddingEnd="16dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📍  設定位置清單"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#212121" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="›"
+                android:textColor="#757575"
+                android:textSize="22sp" />
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" android:layout_marginStart="18dp" />
+
+        <!-- 第 2 項：設定位置歷史紀錄 -->
+        <LinearLayout
+            android:id="@+id/header_history"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:paddingStart="18dp"
+            android:paddingEnd="16dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📋  設定位置歷史紀錄"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#212121" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="›"
+                android:textColor="#757575"
+                android:textSize="22sp" />
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" android:layout_marginStart="18dp" />
+
+        <!-- 第 3 項：路徑規劃清單 -->
+        <LinearLayout
+            android:id="@+id/header_route"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:paddingStart="18dp"
+            android:paddingEnd="16dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🗺  路徑規劃清單"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#212121" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="›"
+                android:textColor="#757575"
+                android:textSize="22sp" />
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E0E0E0" />
+
+    </LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>

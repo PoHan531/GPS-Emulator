@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- 陰影層（增加在淺色地圖上的可見度） -->
+    <path
+        android:strokeColor="#66000000"
+        android:strokeWidth="4"
+        android:fillColor="#00000000"
+        android:pathData="M24,12 a12,12 0 1,0 0,24 a12,12 0 1,0 0,-24 Z"/>
+    <path
+        android:strokeColor="#66000000"
+        android:strokeWidth="4"
+        android:pathData="M4,24 L12,24 M36,24 L44,24 M24,4 L24,12 M24,36 L24,44"/>
+
+    <!-- 白色圓圈 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:fillColor="#00000000"
+        android:pathData="M24,12 a12,12 0 1,0 0,24 a12,12 0 1,0 0,-24 Z"/>
+
+    <!-- 白色十字線 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:pathData="M4,24 L12,24 M36,24 L44,24 M24,4 L24,12 M24,36 L24,44"/>
+
+    <!-- 中心點 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M22,24 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z"/>
+
+</vector>
