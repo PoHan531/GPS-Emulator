@@ -10,6 +10,7 @@ import android.location.Criteria
 import android.location.Location
 import android.location.LocationManager
 import android.os.Binder
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.os.SystemClock
@@ -38,11 +39,10 @@ class MockLocationService : Service() {
         // 路徑模式推送間隔（ms）
         private const val ROUTE_INTERVAL_MS = 200L
 
-        // 所有需要模擬的 Provider（fused + passive 是關鍵）
+        // 所有需要模擬的 Provider（passive 不可被 mock，移除）
         private val MOCK_PROVIDERS = listOf(
             LocationManager.GPS_PROVIDER,
             LocationManager.NETWORK_PROVIDER,
-            LocationManager.PASSIVE_PROVIDER,
             "fused"
         )
     }
@@ -57,6 +57,9 @@ class MockLocationService : Service() {
     var isRunning = false
     var statusCallback: ((String) -> Unit)? = null
     private var pendingError: String? = null
+
+    // 追蹤目前已成功註冊的 provider
+    private val activeProviders = mutableSetOf<String>()
 
     inner class LocalBinder : Binder() {
         fun getService(): MockLocationService = this@MockLocationService
@@ -108,41 +111,46 @@ class MockLocationService : Service() {
     }
 
     private fun setupMockProviders(): Boolean {
-        var anySuccess = false
+        activeProviders.clear()
         val errors = mutableListOf<String>()
 
         for (providerName in MOCK_PROVIDERS) {
-            try {
-                // 先移除舊的（忽略錯誤）
-                try { locationManager.removeTestProvider(providerName) } catch (_: Exception) {}
-
-                locationManager.addTestProvider(
-                    providerName,
-                    /* requiresNetwork= */ false,
-                    /* requiresSatellite= */ false,
-                    /* requiresCell= */ false,
-                    /* hasMonetaryCost= */ false,
-                    /* supportsAltitude= */ true,
-                    /* supportsSpeed= */ true,
-                    /* supportsBearing= */ true,
-                    /* powerRequirement= */ Criteria.POWER_LOW,
-                    /* accuracy= */ Criteria.ACCURACY_FINE
-                )
-                locationManager.setTestProviderEnabled(providerName, true)
-                anySuccess = true
-            } catch (e: Exception) {
-                errors.add("$providerName: ${e.message}")
+            if (addAndEnableProvider(providerName)) {
+                activeProviders.add(providerName)
+            } else {
+                errors.add(providerName)
             }
         }
 
-        if (!anySuccess) {
-            val msg = "無法設定模擬位置，請確認：\n1. 已在「開發人員選項」→「選取模擬位置應用程式」選此 APP\n2. 開發人員選項已啟用\n錯誤：${errors.firstOrNull()}"
+        if (activeProviders.isEmpty()) {
+            val msg = "無法設定模擬位置，請確認：\n1. 已在「開發人員選項」→「選取模擬位置應用程式」選此 APP\n2. 開發人員選項已啟用\n失敗的 Provider：${errors.joinToString()}"
             postStatus(msg)
             stopSelf()
             return false
         }
 
         return true
+    }
+
+    /** 嘗試新增並啟用單一 mock provider，成功回傳 true */
+    private fun addAndEnableProvider(providerName: String): Boolean {
+        return try {
+            try { locationManager.removeTestProvider(providerName) } catch (_: Exception) {}
+            locationManager.addTestProvider(
+                providerName,
+                /* requiresNetwork= */ false,
+                /* requiresSatellite= */ false,
+                /* requiresCell= */ false,
+                /* hasMonetaryCost= */ false,
+                /* supportsAltitude= */ true,
+                /* supportsSpeed= */ true,
+                /* supportsBearing= */ true,
+                /* powerRequirement= */ Criteria.POWER_LOW,
+                /* accuracy= */ Criteria.ACCURACY_FINE
+            )
+            locationManager.setTestProviderEnabled(providerName, true)
+            true
+        } catch (_: Exception) { false }
     }
 
     fun registerStatusCallback(cb: (String) -> Unit) {
@@ -159,36 +167,59 @@ class MockLocationService : Service() {
      * 核心推送函式：同時對所有 provider 推送位置
      * - accuracy=1f 讓系統優先採用此 mock 位置
      * - extras 帶有 noGPSLocation flag，防止 fused provider 混入真實 GPS
+     * - 若推送失敗（provider 被系統移除），自動重新註冊並重試一次
      */
     fun pushLocation(lat: Double, lon: Double, bearing: Float = 0f, speed: Float = 0f) {
         val now = System.currentTimeMillis()
         val elapsedNanos = SystemClock.elapsedRealtimeNanos()
 
         for (providerName in MOCK_PROVIDERS) {
+            val loc = buildLocation(providerName, lat, lon, bearing, speed, now, elapsedNanos)
             try {
-                val loc = Location(providerName).apply {
-                    latitude = lat
-                    longitude = lon
-                    altitude = 10.0
-                    accuracy = 1.0f          // 精度設為 1m，讓系統優先採用
-                    this.bearing = bearing
-                    bearingAccuracyDegrees = 1.0f
-                    this.speed = speed
-                    speedAccuracyMetersPerSecond = 0.1f
-                    time = now
-                    elapsedRealtimeNanos = elapsedNanos
-                    // 防止 FusedLocationProvider 混入真實 GPS
-                    extras = Bundle().apply {
-                        putBoolean("noGPSLocation", true)
-                        putInt("satellites", 10)
-                    }
-                }
+                locationManager.setTestProviderEnabled(providerName, true)
                 locationManager.setTestProviderLocation(providerName, loc)
-            } catch (_: Exception) {}
+                activeProviders.add(providerName)
+            } catch (_: Exception) {
+                // Provider 可能已被系統移除 → 重新註冊後重試一次
+                if (addAndEnableProvider(providerName)) {
+                    try {
+                        locationManager.setTestProviderLocation(providerName, loc)
+                        activeProviders.add(providerName)
+                    } catch (_: Exception) {
+                        activeProviders.remove(providerName)
+                    }
+                } else {
+                    activeProviders.remove(providerName)
+                }
+            }
         }
 
         currentLat = lat
         currentLon = lon
+    }
+
+    private fun buildLocation(
+        providerName: String, lat: Double, lon: Double,
+        bearing: Float, speed: Float, now: Long, elapsedNanos: Long
+    ): Location = Location(providerName).apply {
+        latitude = lat
+        longitude = lon
+        altitude = 10.0
+        accuracy = 1.0f                   // 精度 1m，讓系統優先採用
+        this.bearing = bearing
+        bearingAccuracyDegrees = 1.0f
+        this.speed = speed
+        speedAccuracyMetersPerSecond = 0.1f
+        time = now
+        elapsedRealtimeNanos = elapsedNanos
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            verticalAccuracyMeters = 1.0f  // API 26+ 垂直精度，讓 fused 更確信
+        }
+        // 防止 FusedLocationProvider 混入真實 GPS
+        extras = Bundle().apply {
+            putBoolean("noGPSLocation", true)
+            putInt("satellites", 12)
+        }
     }
 
     fun startStaticMode(lat: Double, lon: Double) {
@@ -231,7 +262,7 @@ class MockLocationService : Service() {
                     val lon = from.longitude + (to.longitude - from.longitude) * fraction
                     pushLocation(lat, lon, bearing, speedMs)
                     // 狀態更新（每 5 步更新一次，減少 UI 負擔）
-                    if (step % 5 == 0) {
+                    if (step % 5L == 0L) {
                         val nextName = if (to.name.isNotBlank()) to.name else "路徑點 ${waypointIndex + 2}"
                         val distLeft = (distanceM * (1 - fraction)).toInt()
                         postStatus("🚗 前往 $nextName | ${speedKmh.toInt()} km/h | 剩 ${distLeft}m")
@@ -264,14 +295,16 @@ class MockLocationService : Service() {
         serviceJob?.cancel()
         serviceJob = null
         isRunning = false
-        // 移除 mock providers，讓系統恢復真實 GPS
-        for (p in MOCK_PROVIDERS) {
-            try {
-                locationManager.setTestProviderEnabled(p, false)
-                locationManager.removeTestProvider(p)
-            } catch (_: Exception) {}
-        }
+        removeAllMockProviders()
         postStatus("⏹ 已停止模擬")
+    }
+
+    private fun removeAllMockProviders() {
+        for (p in MOCK_PROVIDERS) {
+            try { locationManager.setTestProviderEnabled(p, false) } catch (_: Exception) {}
+            try { locationManager.removeTestProvider(p) } catch (_: Exception) {}
+        }
+        activeProviders.clear()
     }
 
     private fun haversineDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -318,12 +351,7 @@ class MockLocationService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
-        for (p in MOCK_PROVIDERS) {
-            try {
-                locationManager.setTestProviderEnabled(p, false)
-                locationManager.removeTestProvider(p)
-            } catch (_: Exception) {}
-        }
+        removeAllMockProviders()
         isRunning = false
         super.onDestroy()
     }

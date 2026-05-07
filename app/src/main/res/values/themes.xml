@@ -6,4 +6,12 @@
         <item name="colorAccent">@color/accent</item>
         <item name="android:windowBackground">@color/background</item>
     </style>
+
+    <!-- 強制白底黑字的對話框（避免 DayNight 主題在深色模式下變黑底） -->
+    <style name="LightDialog" parent="Theme.MaterialComponents.Light.Dialog.Alert">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:textColorPrimary">#212121</item>
+        <item name="android:background">@android:color/white</item>
+    </style>
 </resources>

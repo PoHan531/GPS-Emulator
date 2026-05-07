@@ -237,7 +237,7 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(tvHint)
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle("🔍  搜尋位置")
             .setView(layout)
             .setPositiveButton("搜尋", null)
@@ -329,7 +329,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSearchResultsDialog(results: List<Triple<String, Double, Double>>) {
         val names = results.map { it.first }.toTypedArray()
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle("請選擇地點")
             .setItems(names) { _, which ->
                 val (_, lat, lon) = results[which]
@@ -356,7 +356,7 @@ class MainActivity : AppCompatActivity() {
         etLat.setText("%.6f".format(c.latitude))
         etLon.setText("%.6f".format(c.longitude))
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle("📍  設定位置清單")
             .setView(dialogView)
             .setNegativeButton("關閉", null)
@@ -450,7 +450,7 @@ class MainActivity : AppCompatActivity() {
             addView(dialogView)
         }
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle("📋  設定位置歷史紀錄")
             .setView(scrollView)
             .setNegativeButton("關閉", null)
@@ -522,7 +522,7 @@ class MainActivity : AppCompatActivity() {
         }
         refreshStartBtn()
 
-        val dialog = AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle("🗺  路徑規劃清單")
             .setView(ScrollView(this).apply { addView(dialogView) })
             .setNegativeButton("關閉", null)
@@ -597,7 +597,7 @@ class MainActivity : AppCompatActivity() {
             etDwell.setText(if (pt.dwellSeconds > 0) pt.dwellSeconds.toString() else "")
         }
 
-        val d = AlertDialog.Builder(this)
+        val d = AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle(if (editIndex >= 0) "編輯路徑點" else "新增路徑點")
             .setView(dialogView)
             .setPositiveButton("確認", null)
@@ -785,7 +785,7 @@ class MainActivity : AppCompatActivity() {
 
     // ── 地圖點選處理 ────────────────────────────────────────────────────────
     private fun showPickActionDialog(geoPoint: GeoPoint) {
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle("%.5f, %.5f".format(geoPoint.latitude, geoPoint.longitude))
             .setItems(arrayOf("📍 設為靜態模擬位置", "➕ 新增為路徑點", "取消")) { _, which ->
                 when (which) {
@@ -848,7 +848,7 @@ class MainActivity : AppCompatActivity() {
     // ── 通用對話框 ───────────────────────────────────────────────────────────
     private fun showSaveNameDialog(hint: String, onConfirm: (String) -> Unit) {
         val et = EditText(this).apply { setPadding(40, 20, 40, 20); this.hint = hint }
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle("請輸入名稱")
             .setView(et)
             .setPositiveButton("儲存") { _, _ -> onConfirm(et.text.toString().trim().ifEmpty { hint }) }
