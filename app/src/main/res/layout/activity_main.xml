@@ -17,12 +17,11 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <!-- 地圖中心準星（偏移量補償底部列高度約78dp） -->
+        <!-- 地圖中心準星（與 mapCenter 完全對齊，不加偏移） -->
         <ImageView
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_gravity="center"
-            android:layout_marginBottom="78dp"
             android:src="@drawable/ic_crosshair"
             android:contentDescription="地圖中心點"
             android:elevation="2dp" />
@@ -84,6 +83,20 @@
             app:fabSize="mini"
             app:backgroundTint="#E53935"
             android:visibility="gone"
+            android:elevation="6dp" />
+
+        <!-- 右下：路徑規劃快速按鈕 -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_route"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="62dp"
+            android:layout_marginBottom="90dp"
+            android:contentDescription="路徑規劃"
+            app:srcCompat="@android:drawable/ic_menu_directions"
+            app:fabSize="mini"
+            app:backgroundTint="@color/primary"
             android:elevation="6dp" />
 
         <!-- 右下：返回目前位置 FAB -->
@@ -259,7 +272,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="📋  設定位置歷史紀錄"
+                android:text="📋  已儲存位置"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="#212121" />
@@ -290,7 +303,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="🗺  路徑規劃清單"
+                android:text="🗺  已儲存路徑規劃"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="#212121" />

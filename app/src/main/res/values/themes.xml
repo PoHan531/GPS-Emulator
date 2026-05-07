@@ -7,11 +7,28 @@
         <item name="android:windowBackground">@color/background</item>
     </style>
 
-    <!-- 強制白底黑字的對話框（避免 DayNight 主題在深色模式下變黑底） -->
+    <!-- 強制白底黑字對話框，解決 DayNight 主題導致灰底難以辨識的問題 -->
     <style name="LightDialog" parent="Theme.MaterialComponents.Light.Dialog.Alert">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorAccent">@color/accent</item>
-        <item name="android:textColorPrimary">#212121</item>
-        <item name="android:background">@android:color/white</item>
+        <!-- 確保對話框底色為純白 -->
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <!-- 文字顏色 -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorHint">@color/text_secondary</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <!-- 確定/取消按鈕樣式 -->
+        <item name="buttonBarButtonStyle">@style/LightDialogButton</item>
+        <item name="buttonBarPositiveButtonStyle">@style/LightDialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/LightDialogButton</item>
     </style>
+
+    <!-- 對話框按鈕：主色藍字，清晰可見 -->
+    <style name="LightDialogButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/primary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
 </resources>

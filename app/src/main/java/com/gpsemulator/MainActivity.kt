@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity() {
     // 頂部 FAB
     private lateinit var fabMenu: FloatingActionButton
     private lateinit var fabSearch: FloatingActionButton
+    private lateinit var fabRoute: FloatingActionButton
 
     // 地圖疊加 UI
     private lateinit var tvSimBadge: TextView
@@ -89,8 +90,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var locationManager: LocationManager
 
-    // 新鮮 GPS 請求的 listener（避免 leak）
-    private var freshLocationListener: LocationListener? = null
+    // 新鮮 GPS 請求的 listeners（多 provider 同時請求，避免 leak）
+    private val freshLocationListeners = mutableListOf<LocationListener>()
     private val freshLocationTimeout = Handler(Looper.getMainLooper())
 
     // ── Service 連線 ────────────────────────────────────────────────────────
@@ -131,6 +132,7 @@ class MainActivity : AppCompatActivity() {
         mapView        = findViewById(R.id.map_view)
         fabMenu        = findViewById(R.id.fab_menu)
         fabSearch      = findViewById(R.id.fab_search)
+        fabRoute       = findViewById(R.id.fab_route)
         tvSimBadge     = findViewById(R.id.tv_sim_badge)
         tvStatus       = findViewById(R.id.tv_status)
         tvMapCoords    = findViewById(R.id.tv_map_coords)
@@ -192,6 +194,9 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "已複製：$coords", Toast.LENGTH_SHORT).show()
         }
 
+        // 右下第二顆：路徑規劃快速開啟
+        fabRoute.setOnClickListener { showRouteDialog() }
+
         // 右下 FAB：取得裝置最新 GPS 位置（非快取）
         fabMyLocation.setOnClickListener { requestFreshLocation() }
 
@@ -226,6 +231,8 @@ class MainActivity : AppCompatActivity() {
             isSingleLine = true
             setTextColor(0xFF212121.toInt())
             setHintTextColor(0xFF9E9E9E.toInt())
+            setBackgroundResource(R.drawable.bg_input_outlined)
+            setPadding(24, 16, 24, 16)
         }
         layout.addView(etInput)
 
@@ -451,7 +458,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val dialog = AlertDialog.Builder(this, R.style.LightDialog)
-            .setTitle("📋  設定位置歷史紀錄")
+            .setTitle("📋  已儲存位置")
             .setView(scrollView)
             .setNegativeButton("關閉", null)
             .create()
@@ -523,7 +530,7 @@ class MainActivity : AppCompatActivity() {
         refreshStartBtn()
 
         val dialog = AlertDialog.Builder(this, R.style.LightDialog)
-            .setTitle("🗺  路徑規劃清單")
+            .setTitle("🗺  已儲存路徑規劃")
             .setView(ScrollView(this).apply { addView(dialogView) })
             .setNegativeButton("關閉", null)
             .create()
@@ -656,7 +663,9 @@ class MainActivity : AppCompatActivity() {
         val geoPoint = GeoPoint(lat, lon)
         if (currentMarker == null) {
             currentMarker = Marker(mapView).apply {
-                title = "模擬位置"; setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                title = "模擬位置"
+                // ANCHOR_CENTER + ANCHOR_CENTER：圖示中心點 = 地理座標 = 準心位置
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             }
             mapView.overlays.add(currentMarker)
         }
@@ -675,14 +684,15 @@ class MainActivity : AppCompatActivity() {
         tvStatus.text = "靜態模式：%.6f, %.6f".format(lat, lon)
     }
 
-    // ── 取得「最新」GPS 位置（非快取） ──────────────────────────────────────
+    // ── 取得「最新」GPS 位置（非快取、排除 mock） ────────────────────────────
     @SuppressLint("MissingPermission")
     private fun requestFreshLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
             != PackageManager.PERMISSION_GRANTED) return
 
-        // 移除舊的 listener
-        freshLocationListener?.let { locationManager.removeUpdates(it) }
+        // 移除所有舊的 listener
+        freshLocationListeners.forEach { try { locationManager.removeUpdates(it) } catch (_: Exception) {} }
+        freshLocationListeners.clear()
         freshLocationTimeout.removeCallbacksAndMessages(null)
 
         val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
@@ -692,45 +702,46 @@ class MainActivity : AppCompatActivity() {
         tvStatus.text = "正在取得目前位置..."
         var received = false
 
-        freshLocationListener = object : LocationListener {
-            override fun onLocationChanged(loc: Location) {
-                if (received) return
-                received = true
-                freshLocationTimeout.removeCallbacksAndMessages(null)
-                locationManager.removeUpdates(this)
-                runOnUiThread {
-                    val gp = GeoPoint(loc.latitude, loc.longitude)
-                    mapView.controller.animateTo(gp)
-                    mapView.controller.setZoom(16.0)
-                    tvMapCoords.text = "%.6f, %.6f".format(loc.latitude, loc.longitude)
-                    tvStatus.text = "目前位置：%.6f, %.6f".format(loc.latitude, loc.longitude)
-                }
-            }
-            @Suppress("DEPRECATION")
-            override fun onStatusChanged(p: String?, s: Int, e: Bundle?) {}
-        }
+        // 建立每個 provider 的 listener，同時請求 → 誰先回應就用誰
+        for (provider in enabled) {
+            val listener = object : LocationListener {
+                override fun onLocationChanged(loc: Location) {
+                    if (received) return
+                    // 排除 mock 位置（避免模擬停止後仍拿到舊 mock 快取）
+                    if (loc.isFromMockProvider) return
 
-        try {
-            locationManager.requestLocationUpdates(enabled.first(), 0L, 0f, freshLocationListener!!, mainLooper)
-        } catch (_: SecurityException) { return }
-
-        // 5 秒後若仍未收到，改用快取值
-        freshLocationTimeout.postDelayed({
-            if (!received) {
-                freshLocationListener?.let { locationManager.removeUpdates(it) }
-                // fallback: last known
-                for (p in providers) {
-                    try {
-                        val loc = locationManager.getLastKnownLocation(p) ?: continue
+                    received = true
+                    freshLocationTimeout.removeCallbacksAndMessages(null)
+                    // 移除全部 listeners
+                    freshLocationListeners.forEach {
+                        try { locationManager.removeUpdates(it) } catch (_: Exception) {}
+                    }
+                    runOnUiThread {
                         val gp = GeoPoint(loc.latitude, loc.longitude)
                         mapView.controller.animateTo(gp)
+                        mapView.controller.setZoom(16.0)
                         tvMapCoords.text = "%.6f, %.6f".format(loc.latitude, loc.longitude)
-                        tvStatus.text = "目前位置（快取）：%.6f, %.6f".format(loc.latitude, loc.longitude)
-                        break
-                    } catch (_: SecurityException) {}
+                        tvStatus.text = "目前位置：%.6f, %.6f".format(loc.latitude, loc.longitude)
+                    }
                 }
+                @Suppress("DEPRECATION")
+                override fun onStatusChanged(p: String?, s: Int, e: Bundle?) {}
             }
-        }, 5000L)
+            freshLocationListeners.add(listener)
+            try {
+                locationManager.requestLocationUpdates(provider, 0L, 0f, listener, mainLooper)
+            } catch (_: SecurityException) {}
+        }
+
+        // 15 秒後仍未收到真實位置 → 提示用戶，不使用可能是 mock 的快取
+        freshLocationTimeout.postDelayed({
+            if (!received) {
+                freshLocationListeners.forEach {
+                    try { locationManager.removeUpdates(it) } catch (_: Exception) {}
+                }
+                runOnUiThread { tvStatus.text = "⚠ 無法取得真實位置，請確認 GPS 已開啟且非模擬中" }
+            }
+        }, 15000L)
     }
 
     // 取得位置並填入 EditText（用於設定位置對話框）
@@ -847,10 +858,22 @@ class MainActivity : AppCompatActivity() {
 
     // ── 通用對話框 ───────────────────────────────────────────────────────────
     private fun showSaveNameDialog(hint: String, onConfirm: (String) -> Unit) {
-        val et = EditText(this).apply { setPadding(40, 20, 40, 20); this.hint = hint }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 8, 48, 8)
+            setBackgroundColor(0xFFFFFFFF.toInt())
+        }
+        val et = EditText(this).apply {
+            this.hint = hint
+            setPadding(24, 16, 24, 16)
+            setTextColor(0xFF212121.toInt())
+            setHintTextColor(0xFF9E9E9E.toInt())
+            setBackgroundResource(R.drawable.bg_input_outlined)
+        }
+        container.addView(et)
         AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle("請輸入名稱")
-            .setView(et)
+            .setView(container)
             .setPositiveButton("儲存") { _, _ -> onConfirm(et.text.toString().trim().ifEmpty { hint }) }
             .setNegativeButton("取消", null)
             .show()
@@ -918,7 +941,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume()  { super.onResume();  mapView.onResume();  if (!serviceBound) bindMockService() }
     override fun onPause()   { super.onPause();   mapView.onPause() }
     override fun onDestroy() {
-        freshLocationListener?.let { locationManager.removeUpdates(it) }
+        freshLocationListeners.forEach { try { locationManager.removeUpdates(it) } catch (_: Exception) {} }
+        freshLocationListeners.clear()
         freshLocationTimeout.removeCallbacksAndMessages(null)
         if (serviceBound) { unbindService(serviceConnection); serviceBound = false }
         mapView.onDetach()

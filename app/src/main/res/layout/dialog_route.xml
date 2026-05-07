@@ -6,7 +6,8 @@
     android:paddingStart="12dp"
     android:paddingEnd="12dp"
     android:paddingTop="8dp"
-    android:paddingBottom="14dp">
+    android:paddingBottom="14dp"
+    android:background="@color/surface">
 
     <!-- 路徑點列表 -->
     <androidx.recyclerview.widget.RecyclerView
@@ -23,7 +24,7 @@
         android:layout_height="40dp"
         android:gravity="center"
         android:text="尚未新增路徑點"
-        android:textColor="#757575"
+        android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:visibility="gone" />
 
@@ -42,6 +43,7 @@
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
             android:text="＋ 新增路徑點"
+            android:textColor="@color/primary"
             android:textSize="12sp" />
 
         <Button
@@ -52,6 +54,7 @@
             android:layout_weight="1"
             android:layout_marginStart="4dp"
             android:text="🗑 清除"
+            android:textColor="@color/primary"
             android:textSize="12sp" />
     </LinearLayout>
 
@@ -71,7 +74,7 @@
             android:text="🚗 時速"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="#000000"
+            android:textColor="#212121"
             android:layout_marginEnd="6dp" />
 
         <Button
@@ -80,10 +83,12 @@
             android:layout_width="38dp"
             android:layout_height="38dp"
             android:text="-"
+            android:textColor="@color/primary"
             android:textSize="18sp"
             android:padding="0dp" />
 
-        <com.google.android.material.textfield.TextInputEditText
+        <!-- 速度輸入框：明確邊框＋黑字白底 -->
+        <EditText
             android:id="@+id/et_speed_value"
             android:layout_width="60dp"
             android:layout_height="38dp"
@@ -92,11 +97,13 @@
             android:text="30"
             android:textSize="15sp"
             android:textStyle="bold"
-            android:textColor="#000000"
-            android:background="@android:color/white"
+            android:textColor="#212121"
+            android:background="@drawable/bg_input_outlined"
             android:layout_marginStart="4dp"
             android:layout_marginEnd="4dp"
-            android:maxLength="3" />
+            android:maxLength="3"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp" />
 
         <Button
             android:id="@+id/btn_speed_plus"
@@ -104,6 +111,7 @@
             android:layout_width="38dp"
             android:layout_height="38dp"
             android:text="+"
+            android:textColor="@color/primary"
             android:textSize="18sp"
             android:padding="0dp" />
 
@@ -113,7 +121,7 @@
             android:text=" km/h"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="#000000"
+            android:textColor="#212121"
             android:layout_marginStart="4dp" />
     </LinearLayout>
 
@@ -132,6 +140,7 @@
             android:layout_weight="1"
             android:layout_marginEnd="4dp"
             android:text="▶ 開始路徑模擬"
+            android:textColor="#FFFFFF"
             android:textSize="13sp" />
 
         <Button
@@ -142,6 +151,7 @@
             android:layout_weight="1"
             android:layout_marginStart="4dp"
             android:text="💾 儲存路徑"
+            android:textColor="@color/primary"
             android:textSize="13sp" />
     </LinearLayout>
 
