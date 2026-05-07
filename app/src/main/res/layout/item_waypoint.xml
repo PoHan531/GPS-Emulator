@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="48dp"
-    android:background="?attr/selectableItemBackground"
+    android:background="@color/surface"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingStart="8dp"
@@ -35,7 +35,8 @@
             android:maxLines="1"
             android:text="路徑點 1"
             android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textColor="@color/text_primary" />
 
         <TextView
             android:id="@+id/tv_waypoint_coords"

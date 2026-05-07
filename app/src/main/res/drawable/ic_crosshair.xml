@@ -1,37 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="48dp"
-    android:height="48dp"
-    android:viewportWidth="48"
-    android:viewportHeight="48">
+    android:width="52dp"
+    android:height="52dp"
+    android:viewportWidth="52"
+    android:viewportHeight="52">
 
-    <!-- 陰影層（增加在淺色地圖上的可見度） -->
-    <path
-        android:strokeColor="#66000000"
-        android:strokeWidth="4"
-        android:fillColor="#00000000"
-        android:pathData="M24,12 a12,12 0 1,0 0,24 a12,12 0 1,0 0,-24 Z"/>
-    <path
-        android:strokeColor="#66000000"
-        android:strokeWidth="4"
-        android:pathData="M4,24 L12,24 M36,24 L44,24 M24,4 L24,12 M24,36 L24,44"/>
-
-    <!-- 白色圓圈 -->
+    <!-- === 外框白色 halo（讓深色地圖也看得見） === -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.5"
+        android:strokeWidth="5"
         android:fillColor="#00000000"
-        android:pathData="M24,12 a12,12 0 1,0 0,24 a12,12 0 1,0 0,-24 Z"/>
-
-    <!-- 白色十字線 -->
+        android:pathData="M26,11 a15,15 0 1,0 0,30 a15,15 0 1,0 0,-30 Z"/>
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.5"
-        android:pathData="M4,24 L12,24 M36,24 L44,24 M24,4 L24,12 M24,36 L24,44"/>
+        android:strokeWidth="5"
+        android:pathData="M2,26 L11,26 M41,26 L50,26 M26,2 L26,11 M26,41 L26,50"/>
 
-    <!-- 中心點 -->
+    <!-- === 主色深藍（讓淺色地圖也看得見） === -->
+    <path
+        android:strokeColor="#1565C0"
+        android:strokeWidth="2.5"
+        android:fillColor="#00000000"
+        android:pathData="M26,11 a15,15 0 1,0 0,30 a15,15 0 1,0 0,-30 Z"/>
+    <path
+        android:strokeColor="#1565C0"
+        android:strokeWidth="2.5"
+        android:pathData="M2,26 L11,26 M41,26 L50,26 M26,2 L26,11 M26,41 L26,50"/>
+
+    <!-- === 中心點：白色底 + 藍色填充 === -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M22,24 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z"/>
+        android:pathData="M23,26 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 Z"/>
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M24,26 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z"/>
 
 </vector>

@@ -69,7 +69,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnStopAll: FloatingActionButton
 
     // 抽屜標題
-    private lateinit var headerLocation: View
     private lateinit var headerHistory: View
     private lateinit var headerRoute: View
 
@@ -140,7 +139,6 @@ class MainActivity : AppCompatActivity() {
         btnCopyCoords  = findViewById(R.id.btn_copy_coords)
         fabMyLocation  = findViewById(R.id.fab_my_location)
         btnStopAll     = findViewById(R.id.btn_stop_all)
-        headerLocation = findViewById(R.id.header_location)
         headerHistory  = findViewById(R.id.header_history)
         headerRoute    = findViewById(R.id.header_route)
     }
@@ -194,27 +192,33 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "已複製：$coords", Toast.LENGTH_SHORT).show()
         }
 
-        // 右下第二顆：路徑規劃快速開啟
+        // 右下第二顆：路徑規劃快速開啟（編輯路線）
         fabRoute.setOnClickListener { showRouteDialog() }
 
-        // 右下 FAB：取得裝置最新 GPS 位置（非快取）
-        fabMyLocation.setOnClickListener { requestFreshLocation() }
+        // 右下 FAB：模擬中 → 回到模擬位置；非模擬 → 取得真實 GPS
+        fabMyLocation.setOnClickListener {
+            val svc = mockService
+            if (svc != null && svc.isRunning) {
+                val gp = GeoPoint(svc.currentLat, svc.currentLon)
+                mapView.controller.animateTo(gp)
+                mapView.controller.setZoom(16.0)
+                tvStatus.text = "📍 模擬位置：%.6f, %.6f".format(svc.currentLat, svc.currentLon)
+            } else {
+                requestFreshLocation()
+            }
+        }
 
         // 停止模擬
         btnStopAll.setOnClickListener { stopAllSimulation() }
 
         // 各節點擊彈出視窗
-        headerLocation.setOnClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
-            showLocationDialog()
-        }
         headerHistory.setOnClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
-            showHistoryDialog()
+            showSavedLocationsDialog()
         }
         headerRoute.setOnClickListener {
             drawerLayout.closeDrawer(GravityCompat.START)
-            showRouteDialog()
+            showSavedRoutesDialog()
         }
     }
 
@@ -348,75 +352,20 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // ── 設定位置對話框 ───────────────────────────────────────────────────────
-    private fun showLocationDialog() {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_location, null)
-        val etLat        = dialogView.findViewById<EditText>(R.id.et_latitude)
-        val etLon        = dialogView.findViewById<EditText>(R.id.et_longitude)
-        val btnSet       = dialogView.findViewById<Button>(R.id.btn_set_location)
-        val btnMy        = dialogView.findViewById<Button>(R.id.btn_my_location)
-        val btnMapPick   = dialogView.findViewById<Button>(R.id.btn_set_on_map)
-        val btnSave      = dialogView.findViewById<Button>(R.id.btn_save_location)
+    // ── 已儲存位置對話框（僅顯示位置清單） ─────────────────────────────────
+    private fun showSavedLocationsDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_saved_list, null)
+        val rv      = dialogView.findViewById<RecyclerView>(R.id.rv_items)
+        val tvEmpty = dialogView.findViewById<TextView>(R.id.tv_empty)
+        tvEmpty.text = "尚無儲存的位置"
 
-        // 同步目前地圖中心點
-        val c = mapView.mapCenter
-        etLat.setText("%.6f".format(c.latitude))
-        etLon.setText("%.6f".format(c.longitude))
-
-        val dialog = AlertDialog.Builder(this, R.style.LightDialog)
-            .setTitle("📍  設定位置清單")
-            .setView(dialogView)
-            .setNegativeButton("關閉", null)
-            .create()
-
-        btnSet.setOnClickListener {
-            val lat = etLat.text.toString().toDoubleOrNull()
-            val lon = etLon.text.toString().toDoubleOrNull()
-            if (lat == null || lon == null || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
-                Toast.makeText(this, "請輸入有效的經緯度", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            setStaticLocation(lat, lon)
-            dialog.dismiss()
+        fun refresh(adapter: SavedLocationAdapter) {
+            val list = historyManager.getLocations()
+            adapter.refresh(list)
+            tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
         }
 
-        btnMy.setOnClickListener {
-            fetchRealLocationIntoFields(etLat, etLon)
-        }
-
-        btnMapPick.setOnClickListener {
-            pickingFromMap = true; pickingForRouteIndex = -1
-            tvStatus.text = "請點擊地圖選擇位置..."
-            Toast.makeText(this, "請在地圖上點擊選取位置", Toast.LENGTH_SHORT).show()
-            dialog.dismiss()
-        }
-
-        btnSave.setOnClickListener {
-            val lat = etLat.text.toString().toDoubleOrNull()
-            val lon = etLon.text.toString().toDoubleOrNull()
-            if (lat == null || lon == null) {
-                Toast.makeText(this, "請先輸入有效的經緯度", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            showSaveNameDialog("儲存位置") { name ->
-                historyManager.saveLocation(name, lat, lon)
-                Toast.makeText(this, "已儲存：$name", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        dialog.show()
-        setDialogFullWidth(dialog)
-    }
-
-    // ── 歷史紀錄對話框 ───────────────────────────────────────────────────────
-    private fun showHistoryDialog() {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_history, null)
-        val rvLocs    = dialogView.findViewById<RecyclerView>(R.id.rv_saved_locations)
-        val rvRoutes  = dialogView.findViewById<RecyclerView>(R.id.rv_saved_routes)
-        val tvNoLocs  = dialogView.findViewById<TextView>(R.id.tv_no_locations)
-        val tvNoRts   = dialogView.findViewById<TextView>(R.id.tv_no_routes)
-
-        val locAdapter = SavedLocationAdapter(
+        val adapter = SavedLocationAdapter(
             mutableListOf(),
             onLoad = { item ->
                 setStaticLocation(item.latitude, item.longitude)
@@ -424,61 +373,60 @@ class MainActivity : AppCompatActivity() {
             },
             onDelete = { item ->
                 historyManager.deleteLocation(item.id)
-                refreshHistoryInView(locAdapter = rvLocs.adapter as SavedLocationAdapter,
-                    routeAdapter = rvRoutes.adapter as? SavedRouteAdapter,
-                    tvNoLocs = tvNoLocs, tvNoRts = tvNoRts)
+                refresh(rv.adapter as SavedLocationAdapter)
             }
         )
-        val routeAdapter = SavedRouteAdapter(
-            mutableListOf(),
-            onLoad = { item ->
-                waypoints.clear()
-                waypoints.addAll(item.points)
-                speedKmh = item.speedKmh
-                updateRouteOnMap()
-                Toast.makeText(this, "已載入路徑：${item.name}", Toast.LENGTH_SHORT).show()
-            },
-            onDelete = { item ->
-                historyManager.deleteRoute(item.id)
-                refreshHistoryInView(locAdapter = rvLocs.adapter as SavedLocationAdapter,
-                    routeAdapter = rvRoutes.adapter as? SavedRouteAdapter,
-                    tvNoLocs = tvNoLocs, tvNoRts = tvNoRts)
-            }
-        )
-
-        rvLocs.layoutManager = LinearLayoutManager(this)
-        rvLocs.adapter = locAdapter
-        rvRoutes.layoutManager = LinearLayoutManager(this)
-        rvRoutes.adapter = routeAdapter
-
-        refreshHistoryInView(locAdapter, routeAdapter, tvNoLocs, tvNoRts)
-
-        val scrollView = ScrollView(this).apply {
-            addView(dialogView)
-        }
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = adapter
+        refresh(adapter)
 
         val dialog = AlertDialog.Builder(this, R.style.LightDialog)
             .setTitle("📋  已儲存位置")
-            .setView(scrollView)
+            .setView(ScrollView(this).apply { addView(dialogView) })
             .setNegativeButton("關閉", null)
             .create()
         dialog.show()
         setDialogFullWidth(dialog)
     }
 
-    private fun refreshHistoryInView(
-        locAdapter: SavedLocationAdapter?,
-        routeAdapter: SavedRouteAdapter?,
-        tvNoLocs: TextView,
-        tvNoRts: TextView?
-    ) {
-        val locs = historyManager.getLocations()
-        locAdapter?.refresh(locs)
-        tvNoLocs.visibility = if (locs.isEmpty()) View.VISIBLE else View.GONE
+    // ── 已儲存路徑規劃對話框（僅顯示路徑清單） ──────────────────────────────
+    private fun showSavedRoutesDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_saved_list, null)
+        val rv      = dialogView.findViewById<RecyclerView>(R.id.rv_items)
+        val tvEmpty = dialogView.findViewById<TextView>(R.id.tv_empty)
+        tvEmpty.text = "尚無儲存的路徑"
 
-        val routes = historyManager.getRoutes()
-        routeAdapter?.refresh(routes)
-        tvNoRts?.visibility = if (routes.isEmpty()) View.VISIBLE else View.GONE
+        fun refresh(adapter: SavedRouteAdapter) {
+            val list = historyManager.getRoutes()
+            adapter.refresh(list)
+            tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        val adapter = SavedRouteAdapter(
+            mutableListOf(),
+            onLoad = { item ->
+                waypoints.clear()
+                waypoints.addAll(item.points)
+                speedKmh = item.speedKmh
+                updateRouteOnMap()
+                Toast.makeText(this, "已載入路徑：${item.name}，可用路徑規劃按鈕開始模擬", Toast.LENGTH_LONG).show()
+            },
+            onDelete = { item ->
+                historyManager.deleteRoute(item.id)
+                refresh(rv.adapter as SavedRouteAdapter)
+            }
+        )
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = adapter
+        refresh(adapter)
+
+        val dialog = AlertDialog.Builder(this, R.style.LightDialog)
+            .setTitle("🗺  已儲存路徑規劃")
+            .setView(ScrollView(this).apply { addView(dialogView) })
+            .setNegativeButton("關閉", null)
+            .create()
+        dialog.show()
+        setDialogFullWidth(dialog)
     }
 
     // ── 路徑規劃對話框 ───────────────────────────────────────────────────────
@@ -663,13 +611,30 @@ class MainActivity : AppCompatActivity() {
         val geoPoint = GeoPoint(lat, lon)
         if (currentMarker == null) {
             currentMarker = Marker(mapView).apply {
-                title = "模擬位置"
                 // ANCHOR_CENTER + ANCHOR_CENTER：圖示中心點 = 地理座標 = 準心位置
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             }
             mapView.overlays.add(currentMarker)
         }
-        currentMarker?.position = geoPoint
+        currentMarker?.apply {
+            position = geoPoint
+            title = "📍 %.6f, %.6f".format(lat, lon)
+            // 點擊 marker 可加入已儲存位置
+            setOnMarkerClickListener { _, _ ->
+                AlertDialog.Builder(this@MainActivity, R.style.LightDialog)
+                    .setTitle("加入已儲存位置？")
+                    .setMessage("%.6f, %.6f".format(lat, lon))
+                    .setPositiveButton("儲存") { _, _ ->
+                        showSaveNameDialog("模擬位置") { name ->
+                            historyManager.saveLocation(name, lat, lon)
+                            Toast.makeText(this@MainActivity, "已儲存：$name", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
+                true
+            }
+        }
         mapView.controller.animateTo(geoPoint)
         mapView.invalidate()
         tvMapCoords.text = "%.6f, %.6f".format(lat, lon)

@@ -120,7 +120,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
             android:orientation="vertical"
-            android:background="#F4FFFFFF"
+            android:background="@color/surface"
             android:elevation="4dp">
 
             <!-- 狀態訊息 -->
@@ -132,7 +132,7 @@
                 android:paddingEnd="14dp"
                 android:paddingTop="6dp"
                 android:text="就緒"
-                android:textColor="#757575"
+                android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:maxLines="1"
                 android:ellipsize="end" />
@@ -154,7 +154,7 @@
                     android:layout_weight="1"
                     android:text="25.033000, 121.565400"
                     android:textSize="13sp"
-                    android:textColor="#1A1A1A"
+                    android:textColor="@color/text_primary"
                     android:fontFamily="monospace" />
 
                 <!-- 複製座標按鈕 -->
@@ -225,38 +225,7 @@
         <!-- 分隔線 -->
         <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E0E0E0" />
 
-        <!-- 第 1 項：設定位置清單 -->
-        <LinearLayout
-            android:id="@+id/header_location"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="?attr/selectableItemBackground"
-            android:gravity="center_vertical"
-            android:paddingStart="18dp"
-            android:paddingEnd="16dp"
-            android:clickable="true"
-            android:focusable="true">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="📍  設定位置清單"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="#212121" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="›"
-                android:textColor="#757575"
-                android:textSize="22sp" />
-        </LinearLayout>
-
-        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" android:layout_marginStart="18dp" />
-
-        <!-- 第 2 項：設定位置歷史紀錄 -->
+        <!-- 第 1 項：已儲存位置 -->
         <LinearLayout
             android:id="@+id/header_history"
             android:layout_width="match_parent"
