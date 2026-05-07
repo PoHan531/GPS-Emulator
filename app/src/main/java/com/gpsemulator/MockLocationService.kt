@@ -6,11 +6,11 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
-import android.os.Build
 import android.location.Criteria
 import android.location.Location
 import android.location.LocationManager
 import android.os.Binder
+import android.os.Bundle
 import android.os.IBinder
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
@@ -33,10 +33,16 @@ class MockLocationService : Service() {
         const val MODE_STATIC = "static"
         const val MODE_ROUTE = "route"
 
-        // All providers to mock
+        // 靜態模式推送間隔（ms）- 越短越不容易飄移
+        private const val STATIC_INTERVAL_MS = 200L
+        // 路徑模式推送間隔（ms）
+        private const val ROUTE_INTERVAL_MS = 200L
+
+        // 所有需要模擬的 Provider（fused + passive 是關鍵）
         private val MOCK_PROVIDERS = listOf(
             LocationManager.GPS_PROVIDER,
             LocationManager.NETWORK_PROVIDER,
+            LocationManager.PASSIVE_PROVIDER,
             "fused"
         )
     }
@@ -72,7 +78,7 @@ class MockLocationService : Service() {
 
         startForeground(NOTIFICATION_ID, buildNotification("GPS 模擬器運行中"))
 
-        // Setup mock providers AFTER startForeground
+        // 必須在 startForeground 之後才設定 mock providers
         val setupOk = setupMockProviders()
         if (!setupOk) return START_NOT_STICKY
 
@@ -86,7 +92,7 @@ class MockLocationService : Service() {
             MODE_ROUTE -> {
                 @Suppress("UNCHECKED_CAST", "DEPRECATION")
                 val waypoints: ArrayList<RoutePoint>? =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                         intent?.getSerializableExtra(EXTRA_WAYPOINTS, ArrayList::class.java) as? ArrayList<RoutePoint>
                     } else {
                         intent?.getSerializableExtra(EXTRA_WAYPOINTS) as? ArrayList<RoutePoint>
@@ -107,13 +113,20 @@ class MockLocationService : Service() {
 
         for (providerName in MOCK_PROVIDERS) {
             try {
+                // 先移除舊的（忽略錯誤）
                 try { locationManager.removeTestProvider(providerName) } catch (_: Exception) {}
 
                 locationManager.addTestProvider(
                     providerName,
-                    false, false, false, false, false,
-                    true, true,
-                    Criteria.POWER_LOW, Criteria.ACCURACY_FINE
+                    /* requiresNetwork= */ false,
+                    /* requiresSatellite= */ false,
+                    /* requiresCell= */ false,
+                    /* hasMonetaryCost= */ false,
+                    /* supportsAltitude= */ true,
+                    /* supportsSpeed= */ true,
+                    /* supportsBearing= */ true,
+                    /* powerRequirement= */ Criteria.POWER_LOW,
+                    /* accuracy= */ Criteria.ACCURACY_FINE
                 )
                 locationManager.setTestProviderEnabled(providerName, true)
                 anySuccess = true
@@ -142,17 +155,14 @@ class MockLocationService : Service() {
         else pendingError = msg
     }
 
+    /**
+     * 核心推送函式：同時對所有 provider 推送位置
+     * - accuracy=1f 讓系統優先採用此 mock 位置
+     * - extras 帶有 noGPSLocation flag，防止 fused provider 混入真實 GPS
+     */
     fun pushLocation(lat: Double, lon: Double, bearing: Float = 0f, speed: Float = 0f) {
-        val location = Location(LocationManager.GPS_PROVIDER).apply {
-            latitude = lat
-            longitude = lon
-            altitude = 10.0
-            accuracy = 3.0f
-            this.bearing = bearing
-            this.speed = speed
-            time = System.currentTimeMillis()
-            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
-        }
+        val now = System.currentTimeMillis()
+        val elapsedNanos = SystemClock.elapsedRealtimeNanos()
 
         for (providerName in MOCK_PROVIDERS) {
             try {
@@ -160,11 +170,18 @@ class MockLocationService : Service() {
                     latitude = lat
                     longitude = lon
                     altitude = 10.0
-                    accuracy = 3.0f
+                    accuracy = 1.0f          // 精度設為 1m，讓系統優先採用
                     this.bearing = bearing
+                    bearingAccuracyDegrees = 1.0f
                     this.speed = speed
-                    time = System.currentTimeMillis()
-                    elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+                    speedAccuracyMetersPerSecond = 0.1f
+                    time = now
+                    elapsedRealtimeNanos = elapsedNanos
+                    // 防止 FusedLocationProvider 混入真實 GPS
+                    extras = Bundle().apply {
+                        putBoolean("noGPSLocation", true)
+                        putInt("satellites", 10)
+                    }
                 }
                 locationManager.setTestProviderLocation(providerName, loc)
             } catch (_: Exception) {}
@@ -178,10 +195,13 @@ class MockLocationService : Service() {
         serviceJob?.cancel()
         isRunning = true
         serviceJob = scope.launch {
+            // 立即推送一次，確保馬上生效
+            pushLocation(lat, lon)
+            postStatus("📍 靜態模式：%.6f, %.6f".format(lat, lon))
             while (isActive) {
+                delay(STATIC_INTERVAL_MS)
                 pushLocation(lat, lon)
-                postStatus("📍 靜態模式：%.6f, %.6f".format(lat, lon))
-                delay(1000)
+                // 狀態列每 2 秒更新一次（避免過於頻繁）
             }
         }
     }
@@ -200,10 +220,9 @@ class MockLocationService : Service() {
                 val to = waypoints[(waypointIndex + 1) % waypoints.size]
 
                 val distanceM = haversineDistance(from.latitude, from.longitude, to.latitude, to.longitude)
-                val travelMs = (distanceM / speedMs * 1000).toLong().coerceAtLeast(500L)
+                val travelMs = (distanceM / speedMs * 1000).toLong().coerceAtLeast(ROUTE_INTERVAL_MS)
                 val bearing = calculateBearing(from.latitude, from.longitude, to.latitude, to.longitude)
-                val updateIntervalMs = 500L
-                val steps = (travelMs / updateIntervalMs).coerceAtLeast(1)
+                val steps = (travelMs / ROUTE_INTERVAL_MS).coerceAtLeast(1)
 
                 for (step in 0..steps) {
                     if (!isActive) return@launch
@@ -211,26 +230,31 @@ class MockLocationService : Service() {
                     val lat = from.latitude + (to.latitude - from.latitude) * fraction
                     val lon = from.longitude + (to.longitude - from.longitude) * fraction
                     pushLocation(lat, lon, bearing, speedMs)
-                    val nextName = if (to.name.isNotBlank()) to.name else "路徑點 ${waypointIndex + 2}"
-                    val distLeft = (distanceM * (1 - fraction)).toInt()
-                    postStatus("🚗 前往 $nextName | ${speedKmh.toInt()} km/h | 剩 ${distLeft}m")
-                    delay(updateIntervalMs)
+                    // 狀態更新（每 5 步更新一次，減少 UI 負擔）
+                    if (step % 5 == 0) {
+                        val nextName = if (to.name.isNotBlank()) to.name else "路徑點 ${waypointIndex + 2}"
+                        val distLeft = (distanceM * (1 - fraction)).toInt()
+                        postStatus("🚗 前往 $nextName | ${speedKmh.toInt()} km/h | 剩 ${distLeft}m")
+                    }
+                    delay(ROUTE_INTERVAL_MS)
                 }
 
+                // 到達路徑點後停留
                 if (to.dwellSeconds > 0) {
                     val pointName = if (to.name.isNotBlank()) to.name else "路徑點 ${waypointIndex + 2}"
-                    repeat(to.dwellSeconds) { s ->
-                        if (!isActive) return@launch
+                    val dwellEnd = System.currentTimeMillis() + to.dwellSeconds * 1000L
+                    while (isActive && System.currentTimeMillis() < dwellEnd) {
                         pushLocation(to.latitude, to.longitude)
-                        postStatus("⏸ 停留於 $pointName (${to.dwellSeconds - s}s)")
-                        delay(1000)
+                        val remaining = ((dwellEnd - System.currentTimeMillis()) / 1000).toInt().coerceAtLeast(0)
+                        postStatus("⏸ 停留於 $pointName (${remaining}s)")
+                        delay(STATIC_INTERVAL_MS)
                     }
                 }
 
                 waypointIndex = (waypointIndex + 1) % waypoints.size
                 if (waypointIndex == 0) {
                     postStatus("🔄 路徑完成，重新開始...")
-                    delay(1000)
+                    delay(500)
                 }
             }
         }
@@ -240,6 +264,13 @@ class MockLocationService : Service() {
         serviceJob?.cancel()
         serviceJob = null
         isRunning = false
+        // 移除 mock providers，讓系統恢復真實 GPS
+        for (p in MOCK_PROVIDERS) {
+            try {
+                locationManager.setTestProviderEnabled(p, false)
+                locationManager.removeTestProvider(p)
+            } catch (_: Exception) {}
+        }
         postStatus("⏹ 已停止模擬")
     }
 
